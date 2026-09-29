@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 END = "__end__"
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 class GraphCoreError(RuntimeError):
     pass

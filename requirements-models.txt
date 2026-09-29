@@ -1,2 +1,2 @@
 # Official OpenRouter client used by the Chat Model node through GraphCore's Python wrapper.
-openrouter>=0.10,<1
+openrouter>=0.10.8,<1

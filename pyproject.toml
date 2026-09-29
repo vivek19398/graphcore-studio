@@ -4,10 +4,10 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "graphcore-studio"
-version = "0.2.0"
+version = "0.2.1"
 description = "A local-first visual agent workflow studio powered by a native C++ graph runtime"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9.2"
 license = "MIT"
 license-files = ["LICENSE"]
 classifiers = [
@@ -21,14 +21,18 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 keywords = ["agents", "agentic-workflows", "graph", "C++", "visual-workflow-builder"]
-dependencies = []
+dependencies = [
+  "openrouter>=0.10.8,<1",
+  "pydantic>=2,<3",
+]
 
 [project.optional-dependencies]
-models = ["openrouter>=0.10,<1"]
+models = ["openrouter>=0.10.8,<1"]
 pydantic = ["pydantic>=2,<3"]
 
 [project.scripts]

@@ -10,11 +10,11 @@ The graph hash pins each run to the exact workflow document it started with. Sav
 
 ## Execution split
 
-The C++17 runtime owns sequential scheduling, node transitions, direct equality conditions, step limits, cancellation checks between callbacks and file-checkpoint commits. Python executes the local web API, model requests, registered integrations, demo fixtures and optional Pydantic validation. A Python callback crosses the C ABI and returns its update to the C++ scheduler before the next node runs.
+The C++17 runtime owns sequential scheduling, node transitions, direct equality conditions, step limits, cancellation checks between callbacks and file-checkpoint commits. Python executes the local web API, model requests, registered integrations, demo fixtures and Pydantic validation. A Python callback crosses the C ABI and returns its update to the C++ scheduler before the next node runs.
 
 A **demo model node uses a deterministic response template, not a model**. Select OpenRouter on a Chat Model or Agent node to make a request through the official OpenRouter Python SDK. The API key is read from the Studio process environment, which loads the local `.env` file on startup. The initial adapter performs non-streaming chat completions; it supports role-tagged messages, temperature, token limit, and JSON output mode.
 
-OpenRouter JSON mode requests a JSON object; the next Structured output node can validate its shape and values. Built-in validation supports string, integer, number, boolean, object and array fields with strict primitive types. Pydantic v2 is an optional backend, enabled only when installed in the Python environment that launches Studio. It adds Pydantic model validation to the same field list; custom Python validators are not configured through this UI yet.
+OpenRouter JSON mode requests a JSON object; the next Structured output node can validate its shape and values. Built-in validation supports string, integer, number, boolean, object and array fields with strict primitive types. The standard PyPI install includes Pydantic v2, which adds Pydantic model validation to the same field list; custom Python validators are not configured through this UI yet.
 
 ## Native step commit
 

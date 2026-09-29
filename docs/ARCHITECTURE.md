@@ -4,7 +4,7 @@
 Browser visual canvas (plain HTML/CSS/JS)
              │ local JSON API with per-launch token
 Python standard-library HTTP server and run manager
-      ├── registered Python / optional Pydantic nodes
+      ├── registered Python / Pydantic nodes
       ├── official OpenRouter Python SDK adapter
       └── ctypes C ABI bridge
                   │
@@ -25,7 +25,7 @@ C++17 GraphCore runtime
 - `python/graphcore/`: Python SDK and asyncio callback bridge.
 - `run_studio.py`: one-command native compilation and local startup.
 
-No Node.js, frontend bundler, database, C++ package manager or Python web framework is required. The OpenRouter Python SDK is optional and required only for live model calls; the offline fixture works with the base install. Pydantic remains optional. The canvas is served as local files and does not send workflow data to a remote service.
+No Node.js, frontend bundler, database, C++ package manager or Python web framework is required. The standard PyPI install includes the OpenRouter Python SDK and Pydantic so model and validation nodes are ready to use. Live model calls still require an OpenRouter API key; the offline fixture needs no key or network call. The canvas is served as local files and does not send workflow data to a remote service.
 
 ## Extending nodes
 

@@ -6,7 +6,7 @@ GraphCore Studio is an interactive, local-first visual agent framework. Drag nod
 
 ## Start Studio
 
-Requirements: Python 3.9+ and a C++17 compiler. You do not need CMake, Node.js, Docker, API keys, an internet connection, or a model to try the included workflows.
+Requirements: Python 3.9.2+ and a C++17 compiler. You do not need CMake, Node.js, Docker, API keys, an internet connection, or a model to try the included workflows.
 
 From the project folder, run one command:
 
@@ -26,21 +26,21 @@ Stop the server with Ctrl+C. Workflows and run history live in `studio/data/`; d
 
 ### Install the PyPI package
 
-After the first release is published, install the prebuilt package with:
+Install the prebuilt package and its OpenRouter/Pydantic runtime dependencies with:
 
 ```bash
-python -m pip install "graphcore-studio[models,pydantic]"
+python -m pip install graphcore-studio
 graphcore-studio
 ```
 
-The wheel bundles the C++ runtime and Studio UI. Source installs build the native runtime and therefore require a C++17 compiler and CMake. The distribution is named `graphcore-studio`; its Python API imports as `graphcore`.
+The wheel bundles the C++ runtime and Studio UI. Source installs build the native runtime and therefore require a C++17 compiler and CMake. The distribution is named `graphcore-studio`; its Python API imports as `graphcore`. Windows, macOS, and Linux wheels are provided for supported architectures.
 
 ### Use Pydantic
 
-The built-in structured-output validator works offline with no extra packages. To enable optional Pydantic v2 validation:
+The built-in structured-output validator works offline. Pydantic v2 is installed by the standard PyPI command above and can be selected as the validation engine. When running directly from a source checkout, install the runtime dependencies with:
 
 ```bash
-python3 -m pip install -r requirements-pydantic.txt
+python3 -m pip install -r requirements-models.txt -r requirements-pydantic.txt
 python3 run_studio.py
 ```
 
@@ -48,16 +48,14 @@ On Windows, replace `python3` with `py -3`. Restart Studio after installing pack
 
 ### Use OpenRouter models
 
-The **Chat Model** and **Agent** nodes use GraphCore's model adapter with the official OpenRouter Python SDK. C++ owns graph scheduling, state commits, conditions, and checkpoints; the Python wrapper calls the SDK. The OpenRouter request runs through the project-owned adapter rather than a chain framework.
+The **Chat Model** and **Agent** nodes use GraphCore's model adapter with the official OpenRouter Python SDK, installed automatically by the standard PyPI command. C++ owns graph scheduling, state commits, conditions, and checkpoints; the Python wrapper calls the SDK. The OpenRouter request runs through the project-owned adapter rather than a chain framework.
 
-Install the SDK into the Python environment used to run Studio:
+When running directly from a source checkout, install the runtime dependencies into the Python environment used to run Studio:
 
 ```bash
 python3 -m pip install -r requirements-models.txt
 python3 run_studio.py
 ```
-
-For a PyPI installation, use the `models` extra instead: `python -m pip install "graphcore-studio[models]"`.
 
 In Studio, open **Model integrations**, add `OPENROUTER_API_KEY`, and save. Select **OpenRouter** on a Chat Model node and enter a model ID from the [OpenRouter model catalog](https://openrouter.ai/models). Compose system/user/assistant messages and use **Insert variable** to reference workflow inputs and prior node outputs. Studio loads the local `.env` file automatically; secret values are not included in workflow files. The offline fixture needs no SDK, key, or network call.
 
