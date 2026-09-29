@@ -1,0 +1,74 @@
+[build-system]
+requires = ["scikit-build-core>=0.11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "graphcore-studio"
+version = "0.2.0"
+description = "A local-first visual agent workflow studio powered by a native C++ graph runtime"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["agents", "agentic-workflows", "graph", "C++", "visual-workflow-builder"]
+dependencies = []
+
+[project.optional-dependencies]
+models = ["openrouter>=0.10,<1"]
+pydantic = ["pydantic>=2,<3"]
+
+[project.scripts]
+graphcore-studio = "studio.cli:main"
+
+[tool.scikit-build]
+cmake.version = ">=3.16"
+cmake.build-type = "Release"
+wheel.packages = ["python/graphcore", "studio"]
+wheel.py-api = "py3"
+wheel.platlib = true
+wheel.exclude = ["studio/data/**"]
+sdist.include = [
+  "CMakeLists.txt",
+  "cmake/**",
+  "include/**",
+  "src/**",
+  "python/graphcore/**",
+  "studio/__init__.py",
+  "studio/cli.py",
+  "studio/engine.py",
+  "studio/example_plugin.py",
+  "studio/server.py",
+  "studio/templates/**",
+  "studio/web/**",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+  "requirements-models.txt",
+  "requirements-pydantic.txt",
+  "run_studio.py",
+  "scripts/**",
+  "tests/**",
+  "docs/**",
+  "examples/**",
+]
+sdist.exclude = ["studio/data/**"]
+
+[tool.scikit-build.cmake.define]
+GRAPHCORE_BUILD_TESTS = "OFF"
+GRAPHCORE_BUILD_EXAMPLES = "OFF"
+GRAPHCORE_BUILD_PYTHON = "ON"
+GRAPHCORE_PYTHON_PACKAGE_DIR = "graphcore"

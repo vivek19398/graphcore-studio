@@ -1,0 +1,19 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "chat-model-playground",
+  "name": "Chat model playground",
+  "description": "Compose system and user messages, insert workflow values, and run with an offline fixture or your provider.",
+  "inputs": {
+    "question": "What makes a workflow graph useful?",
+    "audience": "A new developer"
+  },
+  "nodes": [
+    {"id":"start","type":"input","label":"Input","x":40,"y":150,"config":{}},
+    {"id":"chat","type":"model","label":"Chat Model","x":350,"y":150,"config":{"provider":"demo","model":"openai/gpt-4o-mini","messages":[{"role":"system","content":"Explain ideas clearly for {{audience}}. Be concise."},{"role":"user","content":"{{question}}"}],"temperature":0.2,"max_tokens":1024,"demo_response":"A workflow graph makes each step visible, reusable, and easy to route. (Offline demo fixture for: {{question}})","output_key":"answer"}},
+    {"id":"finish","type":"output","label":"Output","x":690,"y":150,"config":{"template":"{{answer}}"}}
+  ],
+  "edges": [
+    {"source":"start","target":"chat","port":"next"},
+    {"source":"chat","target":"finish","port":"next"}
+  ]
+}

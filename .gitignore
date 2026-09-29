@@ -1,0 +1,13 @@
+/build/
+/build-*/
+*.checkpoint
+*.checkpoint.tmp
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+/dist/
+/studio/data/*
+!/studio/data/.gitkeep
+/.env
+/studio/data/.env

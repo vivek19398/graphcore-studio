@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GraphCore Studio · Local agent builder</title>
+<link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+<header class="appbar">
+  <a class="brand" href="/" aria-label="GraphCore Studio"><span class="brandmark">g<span>c</span></span><strong>GraphCore<span> STUDIO</span></strong></a>
+  <div class="workspace-name"><span class="folder-icon">▧</span> Personal workspace <span class="crumb">/</span> <span id="breadcrumb">Research & review</span></div>
+  <div class="appbar-right"><span id="engine-status" class="engine-pill"><i></i> Connecting…</span><button id="help-button" class="icon-button" aria-label="Help">?</button><span class="avatar">L</span></div>
+</header>
+<div class="workspace">
+<aside class="library">
+  <div class="library-top"><div class="eyebrow">WORKSPACE</div><button class="workspace-item active" id="builder-button"><span>▦</span> Workflow builder</button><button class="workspace-item" id="history-button"><span>◷</span> Run history <span id="run-count" class="count">0</span></button><button class="workspace-item" id="integrations-button"><span>⌘</span> Model integrations</button></div>
+  <div class="library-tabs"><button class="active" data-library="nodes">Nodes</button><button data-library="templates">Templates</button></div>
+  <div class="search-wrap"><span>⌕</span><input id="node-search" placeholder="Search nodes…" aria-label="Search nodes"><kbd>/</kbd></div>
+  <div id="node-library"></div>
+  <div class="library-foot"><span class="local-dot"></span><div><strong>Your machine. Your workflows.</strong><p>Designed to run locally.</p></div></div>
+</aside>
+<main class="main">
+  <section class="workflow-header">
+    <div><div class="workflow-title"><input id="workflow-name" aria-label="Workflow name" value="Research & review"><span class="version-tag">DRAFT</span></div><p id="workflow-description">Build a team of agents. Connect the way they think.</p></div>
+    <div class="actions"><button id="open-button" class="button quiet" title="Open a saved workflow">Open</button><button id="save-button" class="button">Save</button><button id="run-button" class="button primary"><span>▶</span> Run workflow</button></div>
+  </section>
+  <div class="canvas-toolbar"><div class="toolbar-tabs"><button class="active" id="canvas-tab">◇ Canvas</button><button id="json-button">{ } Workflow JSON</button></div><div class="toolbar-right"><span id="save-status">Local draft</span><span class="divider"></span><button id="undo-button" class="icon-button" aria-label="Undo" title="Undo (Ctrl/Cmd+Z)">↶</button><button id="redo-button" class="icon-button" aria-label="Redo">↷</button><button id="settings-toggle" class="button small">Settings</button><button id="validate-button" class="button small">✓ Validate</button></div></div>
+  <div class="canvas-area" id="canvas-area" tabindex="0" aria-label="Workflow canvas">
+    <div class="canvas-banner"><span class="tiny-dot"></span> <span id="mode-label">Offline demo · no model calls</span></div>
+    <div id="world"><svg id="edges" aria-label="Workflow connections"></svg><div id="nodes"></div></div>
+    <div id="empty-canvas" hidden><h2>Your next agent starts here.</h2><p>Drag a node onto the canvas, or choose a template.</p></div>
+    <div class="canvas-hint" id="canvas-hint">Drag to arrange · connect the dots to build a flow</div>
+    <div class="canvas-controls"><button id="zoom-out" aria-label="Zoom out">−</button><span id="zoom-label">100%</span><button id="zoom-in" aria-label="Zoom in">+</button><span class="divider"></span><button id="fit-button" aria-label="Fit workflow" title="Fit workflow">⌗</button><span class="divider"></span><button id="add-note-button" title="Show canvas help" aria-label="Canvas help">?</button></div>
+  </div>
+  <section class="console" id="console"><div class="console-header"><div class="console-tabs"><button class="active" data-console="input">Input</button><button data-console="output">Output</button><button data-console="trace">Execution trace <span id="event-count">0</span></button><button data-console="state">State</button></div><div class="console-meta"><span id="run-status">Ready to run</span><button id="stop-button" class="button small danger" hidden>Stop</button></div></div><div id="console-content"></div></section>
+  <footer class="statusbar"><span><i class="local-dot"></i> C++ execution engine <span class="dot-separator">·</span> Python integrations</span><span id="graph-stats">0 nodes · 0 connections</span></footer>
+</main>
+<aside class="inspector"><div class="inspector-heading"><strong>Node settings</strong><span id="inspector-count">01</span><button id="close-inspector" class="icon-button" aria-label="Close node settings">×</button></div><div id="inspector-content"></div></aside>
+</div>
+<div id="toast" role="status" hidden></div>
+<dialog id="modal"><div class="modal-header"><div><div class="eyebrow">GRAPHCORE STUDIO</div><h2 id="modal-title"></h2></div><button id="modal-close" class="icon-button" aria-label="Close dialog">×</button></div><div id="modal-content"></div></dialog>
+<input type="file" id="import-file" accept=".json,application/json" hidden>
+</body></html>

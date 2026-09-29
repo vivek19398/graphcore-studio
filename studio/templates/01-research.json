@@ -1,0 +1,114 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "research-studio",
+  "name": "Research & review",
+  "description": "A two-agent writing team, with a native condition and a human checkpoint.",
+  "inputs": {
+    "input": "How can small teams use local AI responsibly?",
+    "needs_review": true
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "label": "Start with a topic",
+      "x": 60,
+      "y": 180,
+      "config": {}
+    },
+    {
+      "id": "researcher",
+      "type": "agent",
+      "label": "Researcher",
+      "x": 350,
+      "y": 60,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "You are a researcher. Find clear, useful ideas.",
+        "prompt": "Research this topic: {{input}}",
+        "demo_response": "Research notes: {{input}}\n\n1. Start with a narrow, measurable task.\n2. Keep sensitive data local.\n3. Review important decisions with a person.",
+        "output_key": "research"
+      }
+    },
+    {
+      "id": "writer",
+      "type": "agent",
+      "label": "Writer",
+      "x": 650,
+      "y": 60,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "You are an editor. Turn research into a concise, practical brief.",
+        "prompt": "Write a brief using these notes:\n{{research}}",
+        "demo_response": "A practical guide\n\n{{research}}\n\nNext step: build a small pilot, evaluate its output, and expand only after review.",
+        "output_key": "draft"
+      }
+    },
+    {
+      "id": "review_gate",
+      "type": "condition",
+      "label": "Needs human review?",
+      "x": 950,
+      "y": 180,
+      "config": {
+        "field": "needs_review",
+        "expected": true
+      }
+    },
+    {
+      "id": "approval",
+      "type": "approval",
+      "label": "Human checkpoint",
+      "x": 650,
+      "y": 350,
+      "config": {
+        "prompt": "Review this draft before continuing:\n\n{{draft}}",
+        "output_key": "review_response"
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Final brief",
+      "x": 350,
+      "y": 350,
+      "config": {
+        "template": "{{draft}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "input",
+      "target": "researcher",
+      "port": "next"
+    },
+    {
+      "source": "researcher",
+      "target": "writer",
+      "port": "next"
+    },
+    {
+      "source": "writer",
+      "target": "review_gate",
+      "port": "next"
+    },
+    {
+      "source": "review_gate",
+      "target": "approval",
+      "port": "true"
+    },
+    {
+      "source": "review_gate",
+      "target": "output",
+      "port": "false"
+    },
+    {
+      "source": "approval",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}

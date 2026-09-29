@@ -1,0 +1,117 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "supervisor-team",
+  "name": "Supervisor & specialists",
+  "description": "A supervisor delegates to a specialist through native conditional routing.",
+  "inputs": {
+    "input": "Design a local-first agent system"
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "label": "Your request",
+      "x": 40,
+      "y": 180,
+      "config": {}
+    },
+    {
+      "id": "supervisor",
+      "type": "agent",
+      "label": "Supervisor",
+      "x": 310,
+      "y": 180,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "Classify the request. Return exactly technical or general.",
+        "prompt": "Classify: {{input}}",
+        "demo_response": "technical",
+        "output_key": "route"
+      }
+    },
+    {
+      "id": "route",
+      "type": "condition",
+      "label": "Choose a specialist",
+      "x": 580,
+      "y": 180,
+      "config": {
+        "field": "route",
+        "expected": "technical"
+      }
+    },
+    {
+      "id": "technical",
+      "type": "agent",
+      "label": "Technical specialist",
+      "x": 860,
+      "y": 50,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "You are a software architect. Give a concise technical answer.",
+        "prompt": "Answer: {{input}}",
+        "demo_response": "Technical brief: {{input}}\nUse a local UI, a typed workflow document, a C++ scheduler, and Python adapters.",
+        "output_key": "answer"
+      }
+    },
+    {
+      "id": "general",
+      "type": "agent",
+      "label": "General specialist",
+      "x": 860,
+      "y": 330,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "You are a helpful generalist. Give a clear practical answer.",
+        "prompt": "Answer: {{input}}",
+        "demo_response": "Practical brief: {{input}}\nStart small, test the result, and keep a person involved.",
+        "output_key": "answer"
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Team response",
+      "x": 1140,
+      "y": 180,
+      "config": {
+        "template": "{{answer}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "input",
+      "target": "supervisor",
+      "port": "next"
+    },
+    {
+      "source": "supervisor",
+      "target": "route",
+      "port": "next"
+    },
+    {
+      "source": "route",
+      "target": "technical",
+      "port": "true"
+    },
+    {
+      "source": "route",
+      "target": "general",
+      "port": "false"
+    },
+    {
+      "source": "technical",
+      "target": "output",
+      "port": "next"
+    },
+    {
+      "source": "general",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}

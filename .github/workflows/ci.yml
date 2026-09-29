@@ -1,0 +1,51 @@
+name: build-and-test
+on: [push, pull_request]
+jobs:
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build twine
+      - run: python -m build --sdist --wheel
+      - run: python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Install the wheel and exercise the native runtime
+        shell: bash
+        run: |
+          python -m pip install --no-deps --target "$RUNNER_TEMP/graphcore-installed" dist/*.whl
+          cd "$RUNNER_TEMP"
+          PYTHONPATH="$RUNNER_TEMP/graphcore-installed" python - <<'PY'
+          from graphcore import END, Graph
+          from studio.server import TEMPLATES, WEB
+          assert (WEB / "index.html").is_file()
+          assert len(list(TEMPLATES.glob("*.json"))) == 5
+          with Graph() as graph:
+              graph.add_node("check", lambda state, context: {"ok": True})
+              graph.set_entry("check").add_edge("check", END)
+              assert graph.invoke().state["ok"] is True
+          PY
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ['3.9', '3.12']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build --config Release
+      - run: ctest --test-dir build -C Release --output-on-failure
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: >-
+          c++ -std=c++17 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+          -Iinclude src/graphcore.cpp tests/core_tests.cpp -o core_tests
+      - run: ./core_tests

@@ -1,0 +1,70 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "python-tools",
+  "name": "Python tool chain",
+  "description": "Call registered Python functions and route their output through the native engine.",
+  "inputs": {
+    "input": "Local workflows make useful tools accessible to everyone."
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "label": "Start with text",
+      "x": 50,
+      "y": 150,
+      "config": {}
+    },
+    {
+      "id": "keywords",
+      "type": "tool",
+      "label": "Extract keywords",
+      "x": 350,
+      "y": 150,
+      "config": {
+        "tool": "keywords",
+        "input_field": "input",
+        "output_key": "keywords"
+      }
+    },
+    {
+      "id": "count",
+      "type": "tool",
+      "label": "Measure the text",
+      "x": 650,
+      "y": 150,
+      "config": {
+        "tool": "word_count",
+        "input_field": "input",
+        "output_key": "stats"
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Results",
+      "x": 950,
+      "y": 150,
+      "config": {
+        "template": "Keywords: {{keywords}}\n\nText statistics: {{stats}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "input",
+      "target": "keywords",
+      "port": "next"
+    },
+    {
+      "source": "keywords",
+      "target": "count",
+      "port": "next"
+    },
+    {
+      "source": "count",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}

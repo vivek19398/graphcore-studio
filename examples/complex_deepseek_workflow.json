@@ -1,0 +1,371 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "deepseek-agentic-project-review",
+  "name": "DeepSeek Agentic Project Review",
+  "description": "A multi-agent workflow with intent routing, specialist analysis, Pydantic structured output, local tools, conditional escalation, and a human approval gate.",
+  "inputs": {
+    "request": "Review this proposal for a local-first visual agent builder. It uses a C++ graph runtime, a browser UI, and OpenRouter for model access. Identify architecture risks and propose a phased implementation.",
+    "audience": "A small engineering team",
+    "review_required": true,
+    "risk_threshold": 0.65
+  },
+  "nodes": [
+    {
+      "id": "start",
+      "type": "input",
+      "label": "Project request",
+      "x": 40,
+      "y": 340,
+      "config": {}
+    },
+    {
+      "id": "router",
+      "type": "model",
+      "label": "Request router",
+      "x": 310,
+      "y": 340,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Classify the project request. Return exactly one word: architecture, security, or product. Choose architecture for design, implementation, performance, or roadmap questions; security for privacy, credential, or threat concerns; product for usability or adoption concerns."
+          },
+          {
+            "role": "user",
+            "content": "{{request}}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 12,
+        "timeout": 90,
+        "output_key": "route",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "route",
+      "type": "condition",
+      "label": "Architecture request?",
+      "x": 590,
+      "y": 340,
+      "config": {
+        "field": "route",
+        "expected": "architecture"
+      }
+    },
+    {
+      "id": "route_security",
+      "type": "condition",
+      "label": "Security request?",
+      "x": 590,
+      "y": 590,
+      "config": {
+        "field": "route",
+        "expected": "security"
+      }
+    },
+    {
+      "id": "architecture_agent",
+      "type": "agent",
+      "label": "Architecture specialist",
+      "x": 850,
+      "y": 90,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a pragmatic C++ systems architect. Analyze the request for component boundaries, runtime behavior, failure modes, and an incremental delivery plan. Be specific and distinguish facts from assumptions."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}"
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 1400,
+        "timeout": 120,
+        "output_key": "analysis",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "security_agent",
+      "type": "agent",
+      "label": "Security & reliability specialist",
+      "x": 850,
+      "y": 340,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are an application security and reliability reviewer. Review the request for secrets handling, local data exposure, plugin/tool boundaries, retries, observability, and unsafe execution. Return a concise risk assessment with concrete mitigations."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}\nIdentify the highest-priority risks and practical controls."
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 1200,
+        "timeout": 120,
+        "output_key": "analysis",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "product_agent",
+      "type": "agent",
+      "label": "Product workflow specialist",
+      "x": 850,
+      "y": 590,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a product designer for local developer tools. Explain how a new user should build, inspect, configure, debug, and export an agent workflow. Recommend an approachable first-run experience and acceptance criteria."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}"
+          }
+        ],
+        "temperature": 0.3,
+        "max_tokens": 1200,
+        "timeout": 120,
+        "output_key": "analysis",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "facts",
+      "type": "tool",
+      "label": "Measure request",
+      "x": 1130,
+      "y": 340,
+      "config": {
+        "tool": "word_count",
+        "input_field": "request",
+        "output_key": "request_stats"
+      }
+    },
+    {
+      "id": "risk_review",
+      "type": "model",
+      "label": "Structured risk review",
+      "x": 1410,
+      "y": 340,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return one JSON object only with keys: summary (string), risk_score (number from 0 to 1), needs_human_review (boolean), top_risks (array of strings), mitigations (array of strings), next_step (string). Assess risk conservatively."
+          },
+          {
+            "role": "user",
+            "content": "Original request: {{request}}\nSpecialist analysis: {{analysis}}\nRequest size: {{request_stats}}"
+          }
+        ],
+        "temperature": 0,
+        "max_tokens": 1000,
+        "timeout": 120,
+        "json_output": true,
+        "output_key": "review_record",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "validate_record",
+      "type": "schema",
+      "label": "Validate with Pydantic",
+      "x": 1690,
+      "y": 340,
+      "config": {
+        "input_field": "review_record",
+        "output_key": "validated_review",
+        "engine": "pydantic",
+        "fields": [
+          {
+            "name": "summary",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "risk_score",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "needs_human_review",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "top_risks",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "mitigations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "next_step",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "escalation_check",
+      "type": "condition",
+      "label": "Escalate for human review?",
+      "x": 1970,
+      "y": 340,
+      "config": {
+        "field": "review_required",
+        "expected": true
+      }
+    },
+    {
+      "id": "approval",
+      "type": "approval",
+      "label": "Human approval checkpoint",
+      "x": 2250,
+      "y": 120,
+      "config": {
+        "prompt": "Review this agentic workflow assessment before accepting it.\n\n{{validated_review}}\n\nSpecialist analysis:\n{{analysis}}",
+        "output_key": "human_review"
+      }
+    },
+    {
+      "id": "finalize",
+      "type": "agent",
+      "label": "Synthesize final plan",
+      "x": 2530,
+      "y": 340,
+      "config": {
+        "provider": "openrouter",
+        "model": "deepseek/deepseek-v4-pro-0813",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Synthesize the specialist analysis and validated risk record into a useful project review. Include an executive summary, architecture, agent workflow, risks and controls, phased implementation, and testable acceptance criteria. Do not invent specialist findings. If human feedback exists, incorporate it explicitly."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}\nSpecialist analysis: {{analysis}}\nValidated risk review: {{validated_review}}\nHuman review response, if present: {{human_review}}\nRequest stats: {{request_stats}}"
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 1800,
+        "timeout": 120,
+        "output_key": "final_report",
+        "reasoning_effort": "none"
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Project review",
+      "x": 2820,
+      "y": 340,
+      "config": {
+        "template": "{{final_report}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "start",
+      "target": "router",
+      "port": "next"
+    },
+    {
+      "source": "router",
+      "target": "route",
+      "port": "next"
+    },
+    {
+      "source": "route",
+      "target": "architecture_agent",
+      "port": "true"
+    },
+    {
+      "source": "route",
+      "target": "route_security",
+      "port": "false"
+    },
+    {
+      "source": "route_security",
+      "target": "security_agent",
+      "port": "true"
+    },
+    {
+      "source": "route_security",
+      "target": "product_agent",
+      "port": "false"
+    },
+    {
+      "source": "architecture_agent",
+      "target": "facts",
+      "port": "next"
+    },
+    {
+      "source": "security_agent",
+      "target": "facts",
+      "port": "next"
+    },
+    {
+      "source": "product_agent",
+      "target": "facts",
+      "port": "next"
+    },
+    {
+      "source": "facts",
+      "target": "risk_review",
+      "port": "next"
+    },
+    {
+      "source": "risk_review",
+      "target": "validate_record",
+      "port": "next"
+    },
+    {
+      "source": "validate_record",
+      "target": "escalation_check",
+      "port": "next"
+    },
+    {
+      "source": "escalation_check",
+      "target": "approval",
+      "port": "true"
+    },
+    {
+      "source": "escalation_check",
+      "target": "finalize",
+      "port": "false"
+    },
+    {
+      "source": "approval",
+      "target": "finalize",
+      "port": "next"
+    },
+    {
+      "source": "finalize",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}

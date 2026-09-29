@@ -1,0 +1,86 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "structured-output",
+  "name": "Structured extraction",
+  "description": "Generate a JSON object, then validate its fields before producing output.",
+  "inputs": {
+    "input": "A visual workflow builder for local agents."
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "type": "input",
+      "label": "Your source text",
+      "x": 50,
+      "y": 150,
+      "config": {}
+    },
+    {
+      "id": "extract",
+      "type": "agent",
+      "label": "Extract a record",
+      "x": 350,
+      "y": 150,
+      "config": {
+        "provider": "demo",
+        "model": "llama3.2",
+        "system": "Extract a JSON object with summary (string) and confidence (number). Return JSON only.",
+        "prompt": "Extract from: {{input}}",
+        "demo_response": "{\"summary\":\"A local visual workflow builder\",\"confidence\":0.95}",
+        "json_output": true,
+        "output_key": "record"
+      }
+    },
+    {
+      "id": "validate",
+      "type": "schema",
+      "label": "Validate structure",
+      "x": 650,
+      "y": 150,
+      "config": {
+        "input_field": "record",
+        "output_key": "validated",
+        "engine": "builtin",
+        "fields": [
+          {
+            "name": "summary",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "confidence",
+            "type": "number",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Validated result",
+      "x": 950,
+      "y": 150,
+      "config": {
+        "template": "{{validated}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "input",
+      "target": "extract",
+      "port": "next"
+    },
+    {
+      "source": "extract",
+      "target": "validate",
+      "port": "next"
+    },
+    {
+      "source": "validate",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}
