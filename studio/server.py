@@ -2,6 +2,7 @@
 """Local-only Studio server. No third-party web framework or frontend build needed."""
 import argparse
 import copy
+import errno
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,7 +24,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(ROOT))
-from studio.engine import compile_workflow, validate, TOOLS, pydantic_available, provider_availability, register_tool
+from studio.engine import compile_workflow, validate, TOOLS, KEY, pydantic_available, provider_availability, register_tool
 
 WEB = ROOT / "studio" / "web"
 TEMPLATES = ROOT / "studio" / "templates"
@@ -94,6 +95,8 @@ class Store:
         self.base_environment = dict(os.environ)
         self.env_lock = threading.RLock()
         self.saved_environment = load_dotenv(self.env_path)
+        self.models_path = self.root / "models.json"
+        self.models = json.loads(self.models_path.read_text(encoding="utf-8")) if self.models_path.exists() else {}
         self.workflows = self.root / "workflows"; self.workflows.mkdir(exist_ok=True)
         self.runs = self.root / "runs"; self.runs.mkdir(exist_ok=True)
         self.lock = threading.RLock()
@@ -125,6 +128,19 @@ class Store:
         names = sorted(stored | {name for provider in provider_availability() for name in provider.get("env", [])})
         return [{"name": name, "configured": name in os.environ, "stored": name in stored}
                 for name in names]
+
+    def update_models(self, models):
+        if not isinstance(models, dict) or len(models) > 50:
+            raise ValueError("Configure up to 50 named models")
+        for name, model in models.items():
+            if not isinstance(name, str) or not KEY.fullmatch(name):
+                raise ValueError("Model variable names must be simple identifiers")
+            if not isinstance(model, str) or not model.strip() or len(model) > 200 or "/" not in model:
+                raise ValueError("Each model needs an OpenRouter model ID such as openai/gpt-4o-mini")
+        with self.lock:
+            write_json(self.models_path, models)
+            self.models = dict(models)
+        return dict(self.models)
 
     def update_environment(self, values, remove):
         if not isinstance(values, dict) or not isinstance(remove, list):
@@ -167,14 +183,15 @@ class Store:
         write_json(self.runs / (ident + ".json"), self.records[ident])
 
     def start(self, workflow, inputs, max_steps=100):
-        errors = validate(workflow)
+        with self.lock: models = dict(self.models)
+        errors = validate(workflow, models)
         if errors: raise ValueError("\n".join(errors))
         if not isinstance(inputs, dict): raise ValueError("Inputs must be a JSON object")
         if not isinstance(max_steps, int) or not 1 <= max_steps <= 1000: raise ValueError("Step limit must be 1–1000")
         if not self.slots.acquire(blocking=False): raise ValueError("Four runs are already active; wait for one to finish")
         ident = uuid.uuid4().hex
         record = {"id": ident, "name": workflow.get("name", "Untitled workflow"), "workflow": copy.deepcopy(workflow),
-                  "inputs": copy.deepcopy(inputs), "max_steps": max_steps, "created": now(), "status": "queued",
+                  "inputs": copy.deepcopy(inputs), "models": models, "max_steps": max_steps, "created": now(), "status": "queued",
                   "events": [], "state": {}, "prompt": "", "error": "", "duration_ms": 0}
         try:
             with self.lock:
@@ -222,7 +239,7 @@ class Store:
             with self.lock:
                 record = self.records[ident]
                 workflow, inputs, budget = record["workflow"], record["inputs"], record["max_steps"]
-            graph = compile_workflow(workflow, emit)
+            graph = compile_workflow(workflow, emit, record.get("models", {}))
             with self.lock:
                 self.active[ident] = graph
                 if record["status"] == "cancelling": graph.cancel()
@@ -286,6 +303,8 @@ class Handler(BaseHTTPRequestHandler):
                     "tools": [{"name": k, "description": v["description"]} for k,v in TOOLS.items()]})
             if path == "/api/settings/environment":
                 return self.send({"variables": self.server.store.environment_status()})
+            if path == "/api/settings/models":
+                with self.server.store.lock: return self.send({"models": dict(self.server.store.models)})
             if path == "/api/workflows":
                 with self.server.store.lock:
                     items = [json.loads(p.read_text()) for p in self.server.store.workflows.glob("*.json")]
@@ -313,10 +332,12 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(size), parse_constant=lambda value: (_ for _ in ()).throw(ValueError("Non-finite JSON number")))
             if not isinstance(body, dict): raise ValueError("Request must be a JSON object")
             path = urllib.parse.urlsplit(self.path).path
-            if path == "/api/validate": return self.send({"errors": validate(body.get("workflow"))})
+            if path == "/api/validate": return self.send({"errors": validate(body.get("workflow"), self.server.store.models)})
             if path == "/api/settings/environment":
                 return self.send({"variables": self.server.store.update_environment(
                     body.get("values", {}), body.get("remove", []))})
+            if path == "/api/settings/models":
+                return self.send({"models": self.server.store.update_models(body.get("models"))})
             if path == "/api/workflows":
                 workflow = body.get("workflow")
                 if not isinstance(workflow, dict) or workflow.get("format") != "graphcore.studio.v1": raise ValueError("Invalid workflow document")
@@ -346,7 +367,7 @@ class Server(ThreadingHTTPServer):
 
 def main():
     parser = argparse.ArgumentParser(description="GraphCore Studio — local visual agent builder")
-    parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument("--port", type=int, default=None, help="Local port (default: 8787, then an available port)")
     parser.add_argument("--data", default=os.environ.get("GRAPHCORE_STUDIO_DATA", str(ROOT / "studio" / "data")))
     parser.add_argument("--plugin", action="append", default=[], help="Trusted local Python module file registering tools")
     args = parser.parse_args()
@@ -356,7 +377,13 @@ def main():
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
         module.register(register_tool)
     store = Store(args.data)
-    server = Server(("127.0.0.1", args.port), store)
+    try:
+        server = Server(("127.0.0.1", args.port if args.port is not None else 8787), store)
+    except OSError as error:
+        if args.port is not None or getattr(error, "errno", None) != errno.EADDRINUSE:
+            store.close()
+            raise
+        server = Server(("127.0.0.1", 0), store)
     print("GraphCore Studio: http://127.0.0.1:" + str(server.server_port), flush=True)
     print("Local files: " + str(store.root), flush=True)
     try: server.serve_forever()

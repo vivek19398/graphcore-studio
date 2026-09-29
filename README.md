@@ -22,7 +22,7 @@ py run_studio.py
 
 If Python was installed through the Windows Store and `py` is unavailable, run `python run_studio.py` from the Visual Studio Developer Terminal.
 
-Stop the server with Ctrl+C. Workflows and run history live in `studio/data/`; drafts are saved in this browser. Run `python3 run_studio.py --help` to configure the port, data directory, or Python tool plugins.
+Stop the server with Ctrl+C. Workflows and run history live in `studio/data/`; drafts are saved in this browser. Studio starts on port 8787 when available and automatically chooses a free local port if it is occupied. The actual URL is printed in the terminal. Run `python3 run_studio.py --help` to configure a specific port, data directory, or Python tool plugins.
 
 ### Install the PyPI package
 
@@ -57,7 +57,7 @@ python3 -m pip install -r requirements-models.txt
 python3 run_studio.py
 ```
 
-In Studio, open **Model integrations**, add `OPENROUTER_API_KEY`, and save. Select **OpenRouter** on a Chat Model node and enter a model ID from the [OpenRouter model catalog](https://openrouter.ai/models). Compose system/user/assistant messages and use **Insert variable** to reference workflow inputs and prior node outputs. Studio loads the local `.env` file automatically; secret values are not included in workflow files. The offline fixture needs no SDK, key, or network call.
+In Studio, open **Model integrations**, add `OPENROUTER_API_KEY`, and save. Add as many named models as you need, such as `model1 → deepseek/deepseek-v4-pro-0813` and `model2 → openai/gpt-4o-mini`, using IDs from the [OpenRouter model catalog](https://openrouter.ai/models). Choose a saved model on each Chat Model or Agent node. In workflow JSON, set `"model": "$model1"` or `"model": "$model2"` to select the model for that node. Literal model IDs still work. Compose system/user/assistant messages and use **Insert variable** to reference workflow inputs and prior node outputs. Studio loads the local `.env` file automatically; secret values are not included in workflow files. Named model IDs are stored in the local Studio data directory. The offline fixture needs no SDK, key, or network call.
 
 ## Build a workflow
 

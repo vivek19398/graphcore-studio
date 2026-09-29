@@ -7,3 +7,26 @@
 .field>span,.field input,.field select,.field textarea{color:#675773}.field small,.field-help{color:#8b7b98}.inspector-note{color:#897298}.node-head small,.node-foot{color:#8d7c9c}.palette-node small{color:#8b8495}.workflow-header p{color:#8b8295}.input-hint{color:#8a7b97}.console-tabs button{color:#897795}.canvas-hint{color:#9685a6}.toolbar-tabs button{color:#8e7e9d}
 .message-card{border:1px solid #ebe4f1;border-radius:7px;background:#fdfbff;padding:9px;margin:9px 0}.message-card header,.message-tools{display:flex;align-items:center;gap:8px}.message-card header{justify-content:space-between;margin-bottom:8px}.message-card header select,.message-tools select{border:1px solid #e5dbea;border-radius:4px;background:white;color:#675773;font-size:10px;padding:5px 7px}.message-remove{border:0;background:transparent;color:#a78bac;font-size:17px}.message-remove:disabled{opacity:.35;cursor:not-allowed}.message-content{display:block;width:100%;min-height:68px;resize:vertical;border:1px solid #e7dfee;border-radius:5px;padding:8px;font:10px/1.6 var(--mono);color:#675773;background:white}.message-tools{margin-top:7px;justify-content:space-between}.message-tools select{max-width:100%;min-width:0;flex:1}.message-tools small{font-size:8px;color:#91849a;white-space:nowrap}
 .environment-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0ebf4}.environment-row>label:first-child{flex:1;min-width:0;display:grid;grid-template-columns:minmax(120px,1fr) minmax(160px,1.2fr);align-items:center;gap:10px}.environment-row strong{display:block;font:10px var(--mono);color:#675773;overflow-wrap:anywhere}.environment-row small{display:block;margin-top:4px;font-size:9px;color:#8b7b98}.environment-row input[type=password],.environment-row input[data-env-name]{min-width:0;width:100%;border:1px solid #e7dfee;border-radius:5px;padding:8px;font-size:10px;color:#675773}.environment-row.custom>label:first-child{grid-template-columns:minmax(120px,.8fr) minmax(160px,1.2fr)}.env-remove{display:flex;align-items:center;gap:4px;color:#917f9b;font-size:9px;white-space:nowrap}.env-security{padding:9px 11px;background:#f8f5fb;border-radius:6px;color:#867791;font-size:10px}.env-security code{font:9px var(--mono)}@media(max-width:600px){.environment-row>label:first-child,.environment-row.custom>label:first-child{grid-template-columns:1fr;gap:6px}.env-remove{font-size:8px}}
+
+/* Named model registry and clearer interactive controls. */
+.model-row{display:grid;grid-template-columns:minmax(90px,1fr) auto minmax(160px,2fr) 28px;align-items:center;gap:9px;margin:10px 0;padding:10px;background:#fbf9fe;border:1px solid #e8e0f1;border-radius:9px}
+.model-row input{min-width:0;width:100%;padding:9px 10px;border:1px solid #ded5ea;border-radius:6px;background:#fff;color:#514263;font:11px var(--mono)}
+.model-row input:focus{outline:2px solid #d4c5ec;border-color:#9b83c7}
+.model-row span{color:#9985b4;font-size:13px}
+.model-row button{height:28px;border:0;border-radius:5px;background:transparent;color:#a77f98;font-size:19px;cursor:pointer}
+.model-row button:hover{background:#f8eaf0;color:#ad526e}
+.button:focus-visible,.icon-button:focus-visible,.palette-node:focus-visible,.workspace-item:focus-visible{outline:2px solid #9b83c7;outline-offset:2px}
+#clear-button{color:#886b83}
+@media(max-width:650px){.model-row{grid-template-columns:minmax(70px,1fr) auto minmax(100px,1.4fr) 24px;gap:5px;padding:7px}.model-row input{font-size:9px;padding:7px 5px}}
+
+/* Readable hierarchy on the builder, inspector, and model settings. */
+.workspace-item,.palette-node strong,.button,.toolbar-tabs button,.console-tabs button{font-size:12px}
+.palette-node small,.node-head small,.field small,.field-help,.inspector-note,.canvas-banner,.console-meta,.input-hint{font-size:10px;color:#746c82}
+.node-head strong,.inspector-hero strong{font-size:13px;color:#393246}
+.field>span,.inspector-heading strong{font-size:11px;color:#5c506d}
+.field input,.field select,.field textarea{font-size:11px;color:#43374f;border-color:#d9d0e4}
+.workflow-header{border-bottom:1px solid #f0ecf5}
+.canvas-node{box-shadow:0 3px 12px #3524420d,0 12px 30px #35244208}
+.canvas-node:hover{border-color:#c9b8e3;box-shadow:0 5px 15px #35244213,0 15px 32px #3524420b}
+.button{transition:background-color .14s,border-color .14s,box-shadow .14s}
+.button.primary{box-shadow:0 3px 10px #6552b733}

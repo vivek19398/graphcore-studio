@@ -52,7 +52,16 @@ def render(template, state):
         return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
     return re.sub(r"\{\{\s*([A-Za-z_][A-Za-z0-9_.]*)\s*\}\}", replace, template)
 
-def validate(workflow):
+def resolve_model(config, models=None):
+    model = config.get("model", "")
+    if isinstance(model, str) and model.startswith("$"):
+        name = model[1:]
+        if not KEY.fullmatch(name) or name not in (models or {}):
+            raise WorkflowError("Unknown model variable: " + model + ". Add it in Model integrations.")
+        return models[name]
+    return model
+
+def validate(workflow, models=None):
     errors = []
     if not isinstance(workflow, dict):
         return ["Workflow must be an object"]
@@ -103,6 +112,9 @@ def validate(workflow):
                 if field in config and not isinstance(config[field], str): errors.append(ident + ": " + field + " must be text")
             if provider != "demo" and (not isinstance(config.get("model"), str) or not config["model"].strip() or len(config["model"]) > 200):
                 errors.append(ident + ": choose a model identifier (1–200 characters)")
+            elif provider != "demo":
+                try: resolve_model(config, models)
+                except WorkflowError as error: errors.append(ident + ": " + str(error))
             if "temperature" in config and (isinstance(config["temperature"], bool) or not isinstance(config["temperature"], (int,float)) or not math.isfinite(config["temperature"]) or not 0 <= config["temperature"] <= 2):
                 errors.append(ident + ": temperature must be between 0 and 2")
             if "max_tokens" in config and (isinstance(config["max_tokens"], bool) or not isinstance(config["max_tokens"], int) or not 1 <= config["max_tokens"] <= 200000):
@@ -230,7 +242,7 @@ def chat_messages(config, state):
                     {"role":"user", "content":config.get("prompt", "{{input}}") }]
     return [{"role":message["role"], "content":render(message["content"], state)} for message in messages]
 
-def invoke_model(config, state):
+def invoke_model(config, state, models=None):
     provider = config.get("provider", "demo")
     if provider == "demo":
         text = render(config.get("demo_response", "Demo response for {{input}}"), state)
@@ -239,13 +251,14 @@ def invoke_model(config, state):
     if not meta: raise WorkflowError("This initial release supports OpenRouter models. Choose OpenRouter or the offline fixture.")
     api_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     if not api_key: raise WorkflowError("Configure OPENROUTER_API_KEY in Model integrations before running this model.")
-    if not isinstance(config.get("model"), str) or not config["model"].strip():
+    model_id = resolve_model(config, models)
+    if not isinstance(model_id, str) or not model_id.strip():
         raise WorkflowError("Enter an OpenRouter model ID, such as openai/gpt-4o-mini.")
     try:
         from openrouter import OpenRouter
     except ImportError as error:
         raise WorkflowError("Install the OpenRouter SDK in the Studio Python environment: python -m pip install openrouter") from error
-    kwargs = {"model":config["model"], "messages":chat_messages(config, state), "stream":False,
+    kwargs = {"model":model_id, "messages":chat_messages(config, state), "stream":False,
               "temperature":config.get("temperature", 0.2),
               "max_completion_tokens":config.get("max_tokens", 1024),
               "timeout_ms":round(config.get("timeout", 60) * 1000)}
@@ -279,7 +292,7 @@ def invoke_model(config, state):
             # A reasoning-only response often means hidden reasoning consumed the
             # entire completion limit. Ask for a direct answer on the single retry.
             retry["reasoning_effort"] = "none"
-            return invoke_model(retry, state)
+            return invoke_model(retry, state, models)
         finish_reason = field(choice, "finish_reason", "unknown")
         reasoning = field(message, "reasoning")
         reason = " The model returned reasoning but no visible answer." if reasoning else ""
@@ -289,8 +302,8 @@ def invoke_model(config, state):
         return content
     return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
-def compile_workflow(workflow, emit=lambda kind, **data: None):
-    errors = validate(workflow)
+def compile_workflow(workflow, emit=lambda kind, **data: None, models=None):
+    errors = validate(workflow, models)
     if errors: raise WorkflowError("\n".join(errors))
     version = hashlib.sha256(json.dumps(workflow, sort_keys=True).encode()).hexdigest()
     graph = Graph(version)
@@ -303,9 +316,10 @@ def compile_workflow(workflow, emit=lambda kind, **data: None):
             if kind == "input":
                 result = {}
             elif kind in ("agent", "model"):
-                emit("model.started", node=ident, provider=config.get("provider", "demo"), model=config.get("model", ""))
-                result = {key: invoke_model(config, state)}
-                emit("model.completed", node=ident, provider=config.get("provider", "demo"), model=config.get("model", ""))
+                model_id = resolve_model(config, models) if config.get("provider", "demo") != "demo" else ""
+                emit("model.started", node=ident, provider=config.get("provider", "demo"), model=model_id)
+                result = {key: invoke_model(config, state, models)}
+                emit("model.completed", node=ident, provider=config.get("provider", "demo"), model=model_id)
             elif kind == "tool":
                 value = lookup(state, config.get("input_field", "input"))
                 result = {key: TOOLS[config.get("tool", "word_count")]["function"](copy.deepcopy(value), copy.deepcopy(config))}

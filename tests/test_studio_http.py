@@ -77,6 +77,18 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(caught.exception.code,400)
         self.assertIn('error',json.loads(caught.exception.read()))
 
+    def test_named_model_settings_and_json_reference(self):
+        models={'model1':'deepseek/deepseek-v4-pro-0813','model2':'openai/gpt-4o-mini'}
+        self.assertEqual(self.post('/api/settings/models',{'models':models})['models'],models)
+        with self.request('/api/settings/models') as response:
+            self.assertEqual(json.loads(response.read())['models'],models)
+        workflow=json.loads((ROOT/'studio/templates/05-model.json').read_text())
+        workflow['nodes'][1]['config'].update(provider='openrouter',model='$model1')
+        self.assertEqual(self.post('/api/validate',{'workflow':workflow})['errors'],[])
+        workflow['nodes'][1]['config']['model']='$unknown'
+        self.assertTrue(any('Unknown model variable' in error for error in
+                            self.post('/api/validate',{'workflow':workflow})['errors']))
+
     def test_model_environment_settings_are_write_only_and_loaded(self):
         name='GRAPHCORE_TEST_SECRET'
         previous=os.environ.pop(name,None)

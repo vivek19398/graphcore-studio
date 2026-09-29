@@ -11,11 +11,35 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'python'))
-from studio.engine import validate, compile_workflow, structured, render, WorkflowError, pydantic_available, register_tool, TOOLS, chat_messages, invoke_model
+from studio.engine import validate, compile_workflow, structured, render, WorkflowError, pydantic_available, register_tool, TOOLS, chat_messages, invoke_model, resolve_model
 from studio.server import Store
 from graphcore import Graph, END, GraphCoreError
 
 class StudioTests(unittest.TestCase):
+    def test_named_models_resolve_and_validate(self):
+        models = {'model1': 'deepseek/deepseek-v4-pro-0813', 'model2': 'openai/gpt-4o-mini'}
+        self.assertEqual(resolve_model({'model': '$model1'}, models), models['model1'])
+        self.assertEqual(resolve_model({'model': '$model2'}, models), models['model2'])
+        self.assertEqual(resolve_model({'model': 'google/gemini-2.5-flash'}, models), 'google/gemini-2.5-flash')
+        with self.assertRaisesRegex(WorkflowError, 'Unknown model variable'):
+            resolve_model({'model': '$missing'}, models)
+
+    def test_store_persists_named_models(self):
+        with tempfile.TemporaryDirectory() as path:
+            store = Store(path)
+            try:
+                self.assertEqual(store.update_models({'model1': 'deepseek/deepseek-v4-pro-0813'}),
+                                 {'model1': 'deepseek/deepseek-v4-pro-0813'})
+                with self.assertRaisesRegex(ValueError, 'simple identifiers'):
+                    store.update_models({'bad-name': 'openai/gpt-4o-mini'})
+            finally:
+                store.close()
+            reopened = Store(path)
+            try:
+                self.assertEqual(reopened.models['model1'], 'deepseek/deepseek-v4-pro-0813')
+            finally:
+                reopened.close()
+
     def flow(self, name='01-research.json'):
         return json.loads((ROOT / 'studio/templates' / name).read_text())
 
@@ -122,6 +146,10 @@ class StudioTests(unittest.TestCase):
             invoke_model({'provider':'openrouter','model':'deepseek/example','reasoning_effort':'low',
                 'messages':[{'role':'user','content':'hello'}]}, {})
         self.assertEqual(seen['request']['reasoning_effort'],'low')
+        with patch.dict('sys.modules', {'openrouter':sdk}), patch.dict(os.environ, {'OPENROUTER_API_KEY':'test-secret'}):
+            invoke_model({'provider':'openrouter','model':'$model2',
+                'messages':[{'role':'user','content':'hello'}]}, {}, {'model2':'google/gemini-2.5-flash'})
+        self.assertEqual(seen['request']['model'],'google/gemini-2.5-flash')
 
     def test_model_retries_empty_reasoning_response_and_reads_typed_text_blocks(self):
         seen=[]
