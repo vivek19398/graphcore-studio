@@ -1,0 +1,782 @@
+{
+  "format": "graphcore.studio.v1",
+  "id": "multi_model_stress_test",
+  "name": "Multi-model autonomous stress test",
+  "description": "Fourteen OpenRouter calls on the full route, five local tool steps, two Pydantic validations, and two native conditional branches. No approval node.",
+  "inputs": {
+    "request": "Design a local visual agent workflow platform with a C++ execution core, Python model integrations, a browser editor, persistent checkpoints, structured validation, and safe tool calls. Compare its performance fairly with Python graph frameworks. Produce a concrete architecture and delivery plan.",
+    "audience": "Senior engineers and technical product owners",
+    "constraints": "Local-first; macOS, Linux, and Windows; Python 3.9.2+; bounded model calls; no arbitrary code execution from workflow JSON; OpenRouter for the first release; documented benchmark method; clear failure recovery.",
+    "deep_review": true,
+    "include_counterargument": true
+  },
+  "nodes": [
+    {
+      "id": "start",
+      "type": "input",
+      "label": "Project request",
+      "x": 40,
+      "y": 420,
+      "config": {}
+    },
+    {
+      "id": "request_stats",
+      "type": "tool",
+      "label": "Measure request",
+      "x": 320,
+      "y": 420,
+      "config": {
+        "tool": "word_count",
+        "input_field": "request",
+        "output_key": "request_stats"
+      }
+    },
+    {
+      "id": "request_keywords",
+      "type": "tool",
+      "label": "Extract key terms",
+      "x": 600,
+      "y": 420,
+      "config": {
+        "tool": "keywords",
+        "input_field": "request",
+        "output_key": "request_keywords"
+      }
+    },
+    {
+      "id": "request_upper",
+      "type": "tool",
+      "label": "Normalize request",
+      "x": 880,
+      "y": 420,
+      "config": {
+        "tool": "uppercase",
+        "input_field": "request",
+        "output_key": "request_upper"
+      }
+    },
+    {
+      "id": "scope",
+      "type": "agent",
+      "label": "Scope planner",
+      "x": 1160,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are the supervisor of a technical review team. Write 120-180 words. State scope, assumptions, success criteria, and an ordered plan. Do not claim tests or research you did not perform."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}\nConstraints: {{constraints}}\nWord statistics: {{request_stats}}\nKey terms: {{request_keywords}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "scope_plan"
+      }
+    },
+    {
+      "id": "architecture",
+      "type": "agent",
+      "label": "Architecture specialist",
+      "x": 1440,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a C++ and Python systems architect. Write 150-220 words with concrete runtime boundaries, data flow, failure modes, and a testable recommendation."
+          },
+          {
+            "role": "user",
+            "content": "Original request: {{request}}\nScope: {{scope_plan}}\nConstraints: {{constraints}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "architecture_review"
+      }
+    },
+    {
+      "id": "security",
+      "type": "agent",
+      "label": "Security specialist",
+      "x": 1720,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a security reviewer. Write 140-200 words. Identify specific attack surfaces, mitigations, and residual risks. Do not overstate guarantees."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nArchitecture: {{architecture_review}}\nConstraints: {{constraints}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "security_review"
+      }
+    },
+    {
+      "id": "performance",
+      "type": "agent",
+      "label": "Performance specialist",
+      "x": 2000,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a performance engineer. Write 140-200 words. Separate C++ graph overhead from remote model latency; propose a fair benchmark and measurable targets."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nArchitecture: {{architecture_review}}\nSecurity concerns: {{security_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "performance_review"
+      }
+    },
+    {
+      "id": "product",
+      "type": "agent",
+      "label": "Product specialist",
+      "x": 2280,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a product and UX reviewer. Write 140-200 words. Assess visual editing, model configuration, debugging, accessibility, and first-run experience."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nAudience: {{audience}}\nPerformance review: {{performance_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "product_review"
+      }
+    },
+    {
+      "id": "candidate",
+      "type": "agent",
+      "label": "Integrate first proposal",
+      "x": 2560,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a chief editor. In 200-300 words, reconcile the specialists into one implementable proposal. Explicitly name tradeoffs and dependencies."
+          },
+          {
+            "role": "user",
+            "content": "Scope: {{scope_plan}}\nArchitecture: {{architecture_review}}\nSecurity: {{security_review}}\nPerformance: {{performance_review}}\nProduct: {{product_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 4000,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "candidate_plan"
+      }
+    },
+    {
+      "id": "candidate_stats",
+      "type": "tool",
+      "label": "Measure proposal",
+      "x": 2840,
+      "y": 420,
+      "config": {
+        "tool": "word_count",
+        "input_field": "candidate_plan",
+        "output_key": "candidate_stats"
+      }
+    },
+    {
+      "id": "plan_keywords",
+      "type": "tool",
+      "label": "Extract plan themes",
+      "x": 3120,
+      "y": 420,
+      "config": {
+        "tool": "keywords",
+        "input_field": "candidate_plan",
+        "output_key": "plan_keywords"
+      }
+    },
+    {
+      "id": "scorecard",
+      "type": "model",
+      "label": "Score proposal as JSON",
+      "x": 3400,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are a strict evaluator. Return only a JSON object, with exactly these keys: summary (string), risk_score (decimal number from 0 to 1), needs_deep_review (boolean), key_risks (array of strings), mitigations (array of strings), next_step (string). No markdown. Keep arrays to 3-5 items."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nPlan: {{candidate_plan}}\nPlan statistics: {{candidate_stats}}\nThemes: {{plan_keywords}}"
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 3000,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": true,
+        "output_key": "scorecard"
+      }
+    },
+    {
+      "id": "validate_scorecard",
+      "type": "schema",
+      "label": "Validate scorecard",
+      "x": 3680,
+      "y": 420,
+      "config": {
+        "input_field": "scorecard",
+        "output_key": "validated_scorecard",
+        "engine": "pydantic",
+        "fields": [
+          {
+            "name": "summary",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "risk_score",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "needs_deep_review",
+            "type": "boolean",
+            "required": true
+          },
+          {
+            "name": "key_risks",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "mitigations",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "next_step",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "deep_gate",
+      "type": "condition",
+      "label": "Run deep review?",
+      "x": 3960,
+      "y": 420,
+      "config": {
+        "field": "deep_review",
+        "expected": true
+      }
+    },
+    {
+      "id": "quick_review",
+      "type": "agent",
+      "label": "Concise route",
+      "x": 4240,
+      "y": 730,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "You are the final reviewer on the concise route. Write 120-180 words. Preserve critical risks and next steps."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nPlan: {{candidate_plan}}\nScorecard: {{validated_scorecard}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "branch_review"
+      }
+    },
+    {
+      "id": "attack",
+      "type": "agent",
+      "label": "Adversarial reviewer",
+      "x": 4240,
+      "y": 80,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Challenge this proposal aggressively but fairly in 160-220 words. Give at least four plausible failure scenarios and concrete tests that would expose them."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nCandidate: {{candidate_plan}}\nScorecard: {{validated_scorecard}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "attack_review"
+      }
+    },
+    {
+      "id": "reliability",
+      "type": "agent",
+      "label": "Reliability reviewer",
+      "x": 4520,
+      "y": 80,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Evaluate retries, crash recovery, idempotency, rate limits, and partial failure in 150-210 words. Do not assume all model providers behave the same."
+          },
+          {
+            "role": "user",
+            "content": "Candidate: {{candidate_plan}}\nAdversarial review: {{attack_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "reliability_review"
+      }
+    },
+    {
+      "id": "cost",
+      "type": "agent",
+      "label": "Cost reviewer",
+      "x": 4800,
+      "y": 80,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Estimate cost drivers without inventing prices. In 140-190 words, identify token, latency, and provider cost controls plus a measurement plan."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nCandidate: {{candidate_plan}}\nReliability: {{reliability_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "cost_review"
+      }
+    },
+    {
+      "id": "counter_gate",
+      "type": "condition",
+      "label": "Run counterargument?",
+      "x": 5080,
+      "y": 80,
+      "config": {
+        "field": "include_counterargument",
+        "expected": true
+      }
+    },
+    {
+      "id": "counterargument",
+      "type": "agent",
+      "label": "Opposing specialist",
+      "x": 5360,
+      "y": -110,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Argue against the proposal in 140-200 words. Give the strongest opposing design, its advantages, and what evidence would change your view."
+          },
+          {
+            "role": "user",
+            "content": "Candidate: {{candidate_plan}}\nAttack review: {{attack_review}}\nReliability: {{reliability_review}}\nCost: {{cost_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 3200,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "counterargument_review"
+      }
+    },
+    {
+      "id": "deep_with_counter",
+      "type": "agent",
+      "label": "Deep synthesis with opposition",
+      "x": 5640,
+      "y": -110,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write a 220-300 word balanced deep review. Compare the candidate with the counterargument, resolve disagreements, and name the highest-value validation tests."
+          },
+          {
+            "role": "user",
+            "content": "Candidate: {{candidate_plan}}\nAttack: {{attack_review}}\nReliability: {{reliability_review}}\nCost: {{cost_review}}\nCounterargument: {{counterargument_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 4000,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "branch_review"
+      }
+    },
+    {
+      "id": "deep_without_counter",
+      "type": "agent",
+      "label": "Deep synthesis",
+      "x": 5360,
+      "y": 270,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Write a 200-270 word balanced deep review with prioritized fixes and validation tests."
+          },
+          {
+            "role": "user",
+            "content": "Candidate: {{candidate_plan}}\nAttack: {{attack_review}}\nReliability: {{reliability_review}}\nCost: {{cost_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 4000,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "branch_review"
+      }
+    },
+    {
+      "id": "final_report",
+      "type": "agent",
+      "label": "Executive report",
+      "x": 5920,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model1",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Produce a clear final report of 300-450 words with: recommendation, architecture, top risks, performance test, implementation phases, and next experiment. Base claims only on supplied state."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nConstraints: {{constraints}}\nCandidate: {{candidate_plan}}\nValidated scorecard: {{validated_scorecard}}\nBranch review: {{branch_review}}"
+          }
+        ],
+        "temperature": 0.35,
+        "max_tokens": 5000,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": false,
+        "output_key": "report"
+      }
+    },
+    {
+      "id": "final_json",
+      "type": "model",
+      "label": "Machine-readable audit",
+      "x": 6200,
+      "y": 420,
+      "config": {
+        "provider": "openrouter",
+        "model": "$model2",
+        "messages": [
+          {
+            "role": "system",
+            "content": "Return only a JSON object with exactly these keys: executive_summary (string), decision (string), confidence (decimal number from 0 to 1), timeline (array of strings), safeguards (array of strings), verification_plan (array of strings), cost_notes (string). No markdown. Use 3-5 items per array."
+          },
+          {
+            "role": "user",
+            "content": "Request: {{request}}\nFinal report: {{report}}\nValidated scorecard: {{validated_scorecard}}"
+          }
+        ],
+        "temperature": 0.2,
+        "max_tokens": 3500,
+        "timeout": 180,
+        "max_retries": 1,
+        "json_output": true,
+        "output_key": "audit_record"
+      }
+    },
+    {
+      "id": "validate_audit",
+      "type": "schema",
+      "label": "Validate final audit",
+      "x": 6480,
+      "y": 420,
+      "config": {
+        "input_field": "audit_record",
+        "output_key": "validated_audit",
+        "engine": "pydantic",
+        "fields": [
+          {
+            "name": "executive_summary",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "decision",
+            "type": "string",
+            "required": true
+          },
+          {
+            "name": "confidence",
+            "type": "number",
+            "required": true
+          },
+          {
+            "name": "timeline",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "safeguards",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "verification_plan",
+            "type": "array",
+            "required": true
+          },
+          {
+            "name": "cost_notes",
+            "type": "string",
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "output",
+      "type": "output",
+      "label": "Final answer",
+      "x": 6760,
+      "y": 420,
+      "config": {
+        "template": "EXECUTIVE REPORT\n\n{{report}}\n\nSTRUCTURED AUDIT\n\n{{validated_audit}}\n\nREQUEST METRICS\n\n{{request_stats}}"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "start",
+      "target": "request_stats",
+      "port": "next"
+    },
+    {
+      "source": "request_stats",
+      "target": "request_keywords",
+      "port": "next"
+    },
+    {
+      "source": "request_keywords",
+      "target": "request_upper",
+      "port": "next"
+    },
+    {
+      "source": "request_upper",
+      "target": "scope",
+      "port": "next"
+    },
+    {
+      "source": "scope",
+      "target": "architecture",
+      "port": "next"
+    },
+    {
+      "source": "architecture",
+      "target": "security",
+      "port": "next"
+    },
+    {
+      "source": "security",
+      "target": "performance",
+      "port": "next"
+    },
+    {
+      "source": "performance",
+      "target": "product",
+      "port": "next"
+    },
+    {
+      "source": "product",
+      "target": "candidate",
+      "port": "next"
+    },
+    {
+      "source": "candidate",
+      "target": "candidate_stats",
+      "port": "next"
+    },
+    {
+      "source": "candidate_stats",
+      "target": "plan_keywords",
+      "port": "next"
+    },
+    {
+      "source": "plan_keywords",
+      "target": "scorecard",
+      "port": "next"
+    },
+    {
+      "source": "scorecard",
+      "target": "validate_scorecard",
+      "port": "next"
+    },
+    {
+      "source": "validate_scorecard",
+      "target": "deep_gate",
+      "port": "next"
+    },
+    {
+      "source": "deep_gate",
+      "target": "attack",
+      "port": "true"
+    },
+    {
+      "source": "deep_gate",
+      "target": "quick_review",
+      "port": "false"
+    },
+    {
+      "source": "quick_review",
+      "target": "final_report",
+      "port": "next"
+    },
+    {
+      "source": "attack",
+      "target": "reliability",
+      "port": "next"
+    },
+    {
+      "source": "reliability",
+      "target": "cost",
+      "port": "next"
+    },
+    {
+      "source": "cost",
+      "target": "counter_gate",
+      "port": "next"
+    },
+    {
+      "source": "counter_gate",
+      "target": "counterargument",
+      "port": "true"
+    },
+    {
+      "source": "counter_gate",
+      "target": "deep_without_counter",
+      "port": "false"
+    },
+    {
+      "source": "counterargument",
+      "target": "deep_with_counter",
+      "port": "next"
+    },
+    {
+      "source": "deep_with_counter",
+      "target": "final_report",
+      "port": "next"
+    },
+    {
+      "source": "deep_without_counter",
+      "target": "final_report",
+      "port": "next"
+    },
+    {
+      "source": "final_report",
+      "target": "final_json",
+      "port": "next"
+    },
+    {
+      "source": "final_json",
+      "target": "validate_audit",
+      "port": "next"
+    },
+    {
+      "source": "validate_audit",
+      "target": "output",
+      "port": "next"
+    }
+  ]
+}
