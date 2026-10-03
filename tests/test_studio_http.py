@@ -65,6 +65,24 @@ class HttpTests(unittest.TestCase):
             self.post('/api/tables/inspect',{'name':'bad.csv','text':'a,b\n1'})
         self.assertEqual(caught.exception.code,400)
 
+    def test_grouped_table_http_workflow(self):
+        ref=self.post('/api/tables',{'name':'teams.csv','text':'team,amount\na,0.1\na,0.2\nb,0.4\n','types':{'amount':'decimal'}})['table']
+        workflow={'format':'graphcore.studio.v1','nodes':[
+            {'id':'start','type':'input'},
+            {'id':'group','type':'data_group','config':{'input_field':'table','group_column':'team','column':'amount','output_key':'grouped'}},
+            {'id':'end','type':'output','config':{'template':'{{grouped.row_count}}'}}],
+            'edges':[{'source':'start','target':'group'},{'source':'group','target':'end'}]}
+        ident=self.post('/api/runs',{'workflow':workflow,'inputs':{'table':ref}})['id']
+        for _ in range(100):
+            with self.request('/api/runs/'+ident) as response: result=json.loads(response.read())
+            if result['status'] in ('completed','failed'): break
+            time.sleep(.02)
+        self.assertEqual(result['status'],'completed',result.get('error'))
+        self.assertEqual(result['state']['output'],'2')
+        with self.request('/api/tables/'+result['state']['grouped']['id']) as response:
+            table=json.loads(response.read())
+        self.assertEqual([row['sum'] for row in table['rows']],['0.3','0.4'])
+
     def test_typed_table_http_workflow(self):
         ref = self.post('/api/tables', {'name':'sales.csv', 'text':'amount\n0.1\n0.2\n', 'types':{'amount':'decimal'}})['table']
         with self.request('/api/tables/'+ref['id']) as response:

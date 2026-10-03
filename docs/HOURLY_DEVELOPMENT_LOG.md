@@ -33,3 +33,14 @@
 - Delivery continues on `codex/local-data-foundation`; no default-branch merge or PyPI publication.
 - Usage at start: 13% five-hour / 2% weekly. User's explicit continuation authorized this session at that usage.
 - Next step: grouping and exact decimal aggregation with bounded output and clear null/group-key semantics.
+
+## October 3, 2026 — Grouped exact aggregation
+
+- Continued under the user's explicit interactive resume; hourly scheduling retains its separate below-50% stop rule.
+- Added Grouped summary canvas node, per-group exact statistics and immutable typed grouped table references with parent provenance.
+- Defined first-seen order, case-sensitive text keys, decimal key numeric equality, include/exclude null-key policy and all-null/empty-input behavior.
+- Default group cap 100, configurable up to 500; overflow fails before persisting partial results. Derived previews retain provenance when reused as workflow inputs.
+- Validation: 43 unit/compiler/Python tests and 10 HTTP tests passed (53 total), covering exact totals, null statistics, order, decimal keys, limits/no partial artifacts and native/HTTP execution. Browser verified inspector and `Groups: 2. Total: 0.7`; evidence `/tmp/graphcore-group-result.jpg`.
+- No native runtime changes, dependencies or live model calls. Delivery remains `codex/local-data-foundation`; no PyPI release.
+- Usage at start 18% five-hour / 3% weekly.
+- Next step: table reconciliation with explicit key mapping and duplicate policies, then XLSX support.

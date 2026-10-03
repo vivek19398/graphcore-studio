@@ -116,17 +116,62 @@ class LocalTables:
         if schema.get(column) not in ('integer', 'decimal'):
             raise ValueError('Choose an integer or decimal column for the summary')
         values = [Decimal(str(row[column])) for row in table['rows'] if row[column] is not None]
-        # Align the full exponent range, allowing for carry from every row.
+        return dict(self._statistics(values, len(table['rows'])),
+                    source=self.metadata(reference['id'], table), column=column)
+
+    @staticmethod
+    def _statistics(values, row_count):
+        # Align all digits and reserve enough carry places for every row.
         precision = (max(v.adjusted() for v in values) -
                      min(v.as_tuple().exponent for v in values) +
                      len(str(len(values))) + 2) if values else 1
         with localcontext() as context:
             context.prec = max(1, precision)
             total = sum(values, Decimal(0))
-        return {'source': self.metadata(reference['id'], table), 'column': column,
-                'count': len(values), 'null_count': len(table['rows']) - len(values),
-                'sum': str(total), 'min': str(min(values)) if values else None,
+        return {'row_count': row_count, 'count': len(values),
+                'null_count': row_count - len(values), 'sum': str(total),
+                'min': str(min(values)) if values else None,
                 'max': str(max(values)) if values else None}
+
+    def group(self, reference, group_column, column, null_keys='include', max_groups=100):
+        """One typed group key; results stay in a bounded immutable table."""
+        if not isinstance(reference, dict) or reference.get('type') != 'table_ref':
+            raise ValueError('Grouped summary requires a table_ref')
+        if isinstance(max_groups, bool) or not isinstance(max_groups, int) or not 1 <= max_groups <= 500:
+            raise ValueError('Group limit must be between 1 and 500')
+        if null_keys not in ('include','exclude'):
+            raise ValueError('Choose include or exclude for null group keys')
+        table = self.read(reference.get('id'))
+        schema = {c['name']: c['type'] for c in table['columns']}
+        if not isinstance(group_column, str) or group_column not in schema:
+            raise ValueError('Group column does not exist in the source table')
+        if not isinstance(column, str) or schema.get(column) not in ('integer','decimal'):
+            raise ValueError('Choose an integer or decimal column to aggregate')
+        groups, excluded = {}, 0
+        for row in table['rows']:
+            key = row[group_column]
+            if key is None and null_keys == 'exclude':
+                excluded += 1
+                continue
+            # Numeric equivalents (0.1 and 0.10) share one decimal group.
+            identity = Decimal(key) if key is not None and schema[group_column] == 'decimal' else key
+            if identity not in groups:
+                if len(groups) >= max_groups:
+                    raise ValueError('Group limit exceeded; filter the table first or increase the limit (maximum 500)')
+                groups[identity] = {'key':key, 'rows':0, 'values':[]}
+            bucket = groups[identity]
+            bucket['rows'] += 1
+            if row[column] is not None: bucket['values'].append(Decimal(str(row[column])))
+        rows = [dict(self._statistics(g['values'],g['rows']),group_key=g['key']) for g in groups.values()]
+        columns = [{'name':'group_key','type':schema[group_column],'nullable':True}]
+        columns += [{'name':name,'type':'integer','nullable':False} for name in ('row_count','count','null_count')]
+        columns += [{'name':name,'type':'decimal','nullable':name != 'sum'} for name in ('sum','min','max')]
+        return self._persist({'name':('grouped-'+table['name'])[-200:], 'columns':columns, 'rows':rows,
+                              'source_sha256':table['source_sha256'],
+                              'provenance':{'operation':'group','parent_id':reference['id'],
+                                            'group_column':group_column,'column':column,'null_keys':null_keys,
+                                            'max_groups':max_groups,'source_rows':len(table['rows']),
+                                            'excluded_null_keys':excluded,'group_count':len(rows)}})
 
     def filter(self, reference, column, operator, value=None):
         """Typed comparisons; null cells only match explicit null operators."""

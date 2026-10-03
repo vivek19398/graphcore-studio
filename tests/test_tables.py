@@ -90,6 +90,52 @@ class TableTests(unittest.TestCase):
         workflow['nodes'][1]['config']['value']=True
         self.assertTrue(validate(workflow))
 
+    def test_grouped_totals_nulls_and_first_seen_order(self):
+        ref=self.tables.add('sales.csv','team,amount\nB,0.1\nA,0.2\nB,0.2\nA,\n,0.4\nC,\n',{'amount':'decimal'})
+        grouped=self.tables.group(ref,'team','amount')
+        rows=self.tables.read(grouped['id'])['rows']
+        self.assertEqual([r['group_key'] for r in rows],['B','A',None,'C'])
+        self.assertEqual(rows[0]['sum'],'0.3')
+        self.assertEqual((rows[1]['row_count'],rows[1]['count'],rows[1]['null_count']),(2,1,1))
+        self.assertEqual((rows[3]['sum'],rows[3]['min'],rows[3]['max']),('0',None,None))
+        self.assertEqual(grouped['provenance']['parent_id'],ref['id'])
+        self.assertEqual(grouped,self.tables.group(ref,'team','amount'))
+        excluded=self.tables.group(ref,'team','amount','exclude')
+        self.assertEqual(excluded['row_count'],3)
+        self.assertEqual(excluded['provenance']['excluded_null_keys'],1)
+        self.assertEqual(self.tables.summarize(grouped,'sum')['sum'],'0.9')
+
+    def test_group_limit_and_invalid_config_never_save_partial_results(self):
+        ref=self.tables.add('groups.csv','team,amount\na,1\nb,2\n',{'amount':'integer'})
+        before=self.tables.list()
+        for group,column,nulls,limit in [('team','amount','include',1),('missing','amount','include',100),('team','team','include',100),('team','amount','bad',100),('team','amount','include',True)]:
+            with self.subTest(group=group,limit=limit),self.assertRaises(ValueError):
+                self.tables.group(ref,group,column,nulls,limit)
+        self.assertEqual(self.tables.list(),before)
+        empty=self.tables.filter(ref,'amount','gt','100')
+        self.assertEqual(self.tables.group(empty,'team','amount')['row_count'],0)
+
+    def test_decimal_keys_group_by_numeric_equality(self):
+        ref=self.tables.add('keys.csv','key,amount\n0.10,0.1\n0.1,0.2\n',{'key':'decimal','amount':'decimal'})
+        result=self.tables.group(ref,'key','amount')
+        self.assertEqual(result['row_count'],1)
+        self.assertEqual(self.tables.read(result['id'])['rows'][0]['sum'],'0.3')
+
+    def test_native_group_then_summary(self):
+        ref=self.tables.add('teams.csv','team,amount\na,0.1\na,0.2\nb,0.4\n',{'amount':'decimal'})
+        workflow={'format':'graphcore.studio.v1','nodes':[
+            {'id':'start','type':'input'},
+            {'id':'group','type':'data_group','config':{'input_field':'table','group_column':'team','column':'amount','output_key':'grouped'}},
+            {'id':'summary','type':'data','config':{'input_field':'grouped','column':'sum','output_key':'stats'}},
+            {'id':'end','type':'output','config':{'template':'{{stats.sum}}'}}],
+            'edges':[{'source':'start','target':'group'},{'source':'group','target':'summary'},{'source':'summary','target':'end'}]}
+        with compile_workflow(workflow,summarize=self.tables.summarize,group_table=self.tables.group) as graph:
+            result=graph.invoke({'table':ref})
+        self.assertEqual(result.state['output'],'0.7')
+        self.assertNotIn('rows',result.state['grouped'])
+        workflow['nodes'][1]['config']['max_groups']=501
+        self.assertTrue(validate(workflow))
+
     def test_native_data_graph_and_bounded_preview(self):
         ref = self.tables.add('numbers.csv','amount\n'+'1\n'*25,{'amount':'integer'})
         self.assertEqual(len(self.tables.preview(ref['id'])['rows']),20)

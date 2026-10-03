@@ -71,3 +71,26 @@ JSON node configuration:
 ```
 
 Operator IDs are `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `is_null`, `not_null`. Null operators do not require `value`.
+
+## Grouped aggregation
+
+Add **Grouped summary** after Input or Table filter. Set the table reference field, group column, numeric column, null-key policy and maximum groups (default 100, maximum 500). The output is another immutable `table_ref`, not a list of records in workflow state. Preview it in Data workspace, filter it, or pass it to Data summary using numeric column `sum` to calculate the grand total.
+
+Each group produces:
+
+| Column | Meaning |
+|---|---|
+| `group_key` | First encountered representation of the source key, retaining its declared type |
+| `row_count` | All rows in the group |
+| `count` | Non-null numeric values |
+| `null_count` | Null numeric values |
+| `sum` | Exact decimal total as a string |
+| `min`, `max` | Exact decimal values, or null when no numeric values exist |
+
+Groups retain their first-seen order. Text keys are case-sensitive. Decimal keys group by numeric equality, so 0.10 and 0.1 belong together. Include null keys as a separate group or exclude those rows; provenance records the excluded count. All-null numeric groups have sum `0` and null min/max. Empty input produces an empty grouped table with the complete schema. If the configured group limit is exceeded, execution fails without persisting a partial grouped result.
+
+Example: team A has 0.1 and 0.2, team B has 0.4. Grouping produces sums `0.3` and `0.4`; summarizing the grouped `sum` column returns `0.7`. Only one group column and one numeric column are supported in this increment; multi-key grouping, averages and custom aggregate expressions remain future work.
+
+```json
+{"id":"group","type":"data_group","config":{"input_field":"table","group_column":"team","column":"amount","null_keys":"include","max_groups":100,"output_key":"grouped"}}
+```

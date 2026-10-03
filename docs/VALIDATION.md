@@ -52,3 +52,9 @@ These checks do not include browser-level visual interaction or remote Linux/Win
 - 39 unit/compiler/Python tests and 9 loopback HTTP tests passed; the HTTP workflow now checks filtering before aggregation.
 - Actual browser verified filter inspector controls and native filter → summary → output (`0.5`), with no model call.
 - JavaScript syntax and diff checks passed; no native runtime changes or added dependencies.
+
+## October 3: grouped exact aggregation
+
+- 43 unit/compiler/Python tests and 10 loopback HTTP tests passed; grouped results preview and native group → summary pipelines verified.
+- Actual browser grouped inspector and execution returned `Groups: 2. Total: 0.7`.
+- JavaScript syntax and diff checks passed. Group limits, no partial persistence, null policies and decimal key equality have regression coverage.

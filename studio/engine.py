@@ -9,7 +9,7 @@ import re
 from collections import Counter
 from graphcore import Graph, Interrupt, Update, END
 
-KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "data_filter", "schema", "approval", "output"}
+KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "data_filter", "data_group", "schema", "approval", "output"}
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool,
          "object": dict, "array": list}
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
@@ -135,11 +135,19 @@ def validate(workflow, models=None):
                             break
         if kind == "tool" and config.get("tool", "word_count") not in TOOLS:
             errors.append(ident + ": unknown registered tool")
-        if kind in ("data", "data_filter"):
+        if kind in ("data", "data_filter", "data_group"):
             if not isinstance(config.get("column"), str) or not config["column"].strip():
                 errors.append(ident + ": choose a column")
             if not isinstance(config.get("input_field"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config["input_field"]):
                 errors.append(ident + ": choose a table reference state field")
+        if kind == "data_group":
+            if not isinstance(config.get("group_column"), str) or not config["group_column"].strip():
+                errors.append(ident + ": choose a group column")
+            if config.get("null_keys", "include") not in ("include", "exclude"):
+                errors.append(ident + ": choose include or exclude for null keys")
+            limit = config.get("max_groups", 100)
+            if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 500:
+                errors.append(ident + ": group limit must be between 1 and 500")
         if kind == "data_filter":
             operator = config.get("operator", "eq")
             if operator not in ("eq","ne","gt","gte","lt","lte","contains","is_null","not_null"):
@@ -318,7 +326,7 @@ def invoke_model(config, state, models=None):
         return content
     return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
-def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None, filter_table=None):
+def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None, filter_table=None, group_table=None):
     errors = validate(workflow, models)
     if errors: raise WorkflowError("\n".join(errors))
     version = hashlib.sha256(json.dumps(workflow, sort_keys=True).encode()).hexdigest()
@@ -339,6 +347,9 @@ def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retr
             elif kind == "tool":
                 value = lookup(state, config.get("input_field", "input"))
                 result = {key: TOOLS[config.get("tool", "word_count")]["function"](copy.deepcopy(value), copy.deepcopy(config))}
+            elif kind == "data_group":
+                if group_table is None: raise WorkflowError("Local grouped aggregation is unavailable")
+                result = {key: group_table(lookup(state, config["input_field"]), config["group_column"], config["column"], config.get("null_keys", "include"), config.get("max_groups", 100))}
             elif kind == "data_filter":
                 if filter_table is None: raise WorkflowError("Local table filtering is unavailable")
                 result = {key: filter_table(lookup(state, config["input_field"]), config["column"], config.get("operator", "eq"), config.get("value"))}
