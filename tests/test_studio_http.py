@@ -10,6 +10,7 @@ import time
 import unittest
 import urllib.error
 import urllib.request
+from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
 from studio.server import Server, Store
@@ -38,6 +39,12 @@ class HttpTests(unittest.TestCase):
         with self.request(path,data,{'X-Studio-Token':self.server.token,'Content-Type':'application/json','Origin':self.url}) as r:
             return json.loads(r.read())
 
+    def delete(self,path):
+        request=urllib.request.Request(self.url+path,headers={
+            'X-Studio-Token':self.server.token,'Origin':self.url},method='DELETE')
+        with self.opener.open(request,timeout=5) as response:
+            return json.loads(response.read())
+
     def test_bootstrap_and_static_assets(self):
         with self.request('/api/bootstrap') as r:
             data=json.loads(r.read())
@@ -48,6 +55,26 @@ class HttpTests(unittest.TestCase):
             with self.request(file) as r:
                 self.assertGreater(len(r.read()),100)
                 self.assertIn("frame-ancestors 'none'",r.headers['Content-Security-Policy'])
+
+    def test_typed_table_http_workflow(self):
+        ref = self.post('/api/tables', {'name':'sales.csv', 'text':'amount\n0.1\n0.2\n', 'types':{'amount':'decimal'}})['table']
+        with self.request('/api/tables/'+ref['id']) as response:
+            preview = json.loads(response.read())
+        self.assertEqual(preview['rows'][0]['amount'], '0.1')
+        with self.request('/api/tables') as response:
+            self.assertIn(ref, json.loads(response.read())['tables'])
+        workflow = {'format':'graphcore.studio.v1', 'nodes':[
+            {'id':'start','type':'input'},
+            {'id':'summary','type':'data','config':{'input_field':'table','column':'amount','output_key':'stats'}},
+            {'id':'end','type':'output','config':{'template':'{{stats.sum}}'}}],
+            'edges':[{'source':'start','target':'summary'},{'source':'summary','target':'end'}]}
+        ident = self.post('/api/runs', {'workflow':workflow,'inputs':{'table':ref}})['id']
+        for _ in range(100):
+            with self.request('/api/runs/'+ident) as response: result=json.loads(response.read())
+            if result['status'] in ('completed','failed'): break
+            time.sleep(.02)
+        self.assertEqual(result['status'],'completed',result.get('error'))
+        self.assertEqual(result['state']['output'],'0.3')
 
     def test_cross_origin_and_missing_token_rejected(self):
         for headers in [{}, {'X-Studio-Token':self.server.token,'Origin':'https://evil.invalid'}]:
@@ -84,10 +111,40 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(json.loads(response.read())['models'],models)
         workflow=json.loads((ROOT/'studio/templates/05-model.json').read_text())
         workflow['nodes'][1]['config'].update(provider='openrouter',model='$model1')
-        self.assertEqual(self.post('/api/validate',{'workflow':workflow})['errors'],[])
+        with patch('studio.engine.importlib.util.find_spec',return_value=object()):
+            self.assertEqual(self.post('/api/validate',{'workflow':workflow})['errors'],[])
         workflow['nodes'][1]['config']['model']='$unknown'
         self.assertTrue(any('Unknown model variable' in error for error in
                             self.post('/api/validate',{'workflow':workflow})['errors']))
+
+    def test_document_library_api_and_retrieval_workflow(self):
+        added=self.post('/api/documents',{'name':'returns-policy.txt',
+            'text':'Returns are accepted within thirty days with the original receipt.'})['document']
+        with self.request('/api/documents') as response:
+            self.assertEqual(json.loads(response.read())['documents'][0]['id'],added['id'])
+        workflow={
+            'format':'graphcore.studio.v1','id':'local_document_qa','name':'Local document Q&A',
+            'inputs':{'input':'When are returns accepted within thirty days?'},
+            'nodes':[
+                {'id':'start','type':'input','config':{}},
+                {'id':'lookup','type':'retrieve','config':{'input_field':'input','top_k':2,'output_key':'context'}},
+                {'id':'finish','type':'output','config':{'template':'{{context.results}}'}},
+            ],
+            'edges':[{'source':'start','target':'lookup'}, {'source':'lookup','target':'finish'}],
+        }
+        ident=self.post('/api/runs',{'workflow':workflow,'inputs':workflow['inputs']})['id']
+        result=None
+        for _ in range(100):
+            with self.request('/api/runs/'+ident) as response:
+                result=json.loads(response.read())
+            if result['status']=='completed': break
+            time.sleep(.02)
+        self.assertEqual(result['status'],'completed')
+        self.assertEqual(result['state']['context']['results'][0]['source'], 'returns-policy.txt')
+        self.assertIn('thirty days',result['state']['output'])
+        self.assertTrue(self.delete('/api/documents/'+added['id'])['removed'])
+        with self.request('/api/documents') as response:
+            self.assertEqual(json.loads(response.read())['documents'],[])
 
     def test_model_environment_settings_are_write_only_and_loaded(self):
         name='GRAPHCORE_TEST_SECRET'

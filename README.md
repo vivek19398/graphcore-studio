@@ -70,6 +70,10 @@ In Studio, open **Model integrations**, add `OPENROUTER_API_KEY`, and save. Add 
 
 The starter templates cover research and review, structured output, Python tools, a supervisor delegating work to specialist agents, and a chat-model playground. The canvas also supports node search, keyboard undo/redo, zoom, pan, layout changes, validation, and run history.
 
+## Add document retrieval
+
+Open **Knowledge library** in the left sidebar and add `.txt`, `.md`, `.csv`, or `.json` files. The files stay in the local Studio data folder (up to 100 documents, 1 MiB per document, 10 MiB total). Add a **Document retrieval** node after Input, set its query field (for example `input`) and result count, then connect it to a Chat Model. Reference `{{context.results}}` in the model prompt, replacing `context` with the retrieval node's output key. Returned passages include source filenames and chunk numbers. Retrieval uses local BM25 keyword matching; it does not call an embedding service, and PDF extraction is not included yet.
+
 Prompt templates reference state with `{{input}}`, `{{research}}`, or nested fields such as `{{record.summary}}`. Structured Output defines required fields and types. Python plugins extend the node's registered-tool list without placing executable source code in the workflow document.
 
 ## Register a Python library or tool
@@ -141,3 +145,7 @@ Parallel fan-out and joins, database-backed persistence, distributed worker coor
 - [Local verification record](docs/VALIDATION.md)
 - [PyPI release checklist](docs/PYPI_RELEASE.md)
 - [Example plugin](studio/example_plugin.py)
+
+### Local CSV data workflows
+
+The development checkout now includes **Data workspace**: import typed CSV files, preview local tables, and build an offline summary workflow with exact decimal calculations. Workflow state carries immutable table references rather than full datasets. See [the data workspace guide](docs/DATA_WORKSPACE.md) for usage, limits and the next delivery steps. This addition is not yet in the published 0.2.2 release.

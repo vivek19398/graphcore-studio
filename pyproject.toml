@@ -54,6 +54,8 @@ sdist.include = [
   "studio/__init__.py",
   "studio/cli.py",
   "studio/engine.py",
+  "studio/knowledge.py",
+  "studio/tables.py",
   "studio/example_plugin.py",
   "studio/server.py",
   "studio/templates/**",

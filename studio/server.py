@@ -25,6 +25,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 sys.path.insert(0, str(ROOT))
 from studio.engine import compile_workflow, validate, TOOLS, KEY, pydantic_available, provider_availability, register_tool
+from studio.knowledge import LocalKnowledge
+from studio.tables import LocalTables
 
 WEB = ROOT / "studio" / "web"
 TEMPLATES = ROOT / "studio" / "templates"
@@ -99,6 +101,8 @@ class Store:
         self.models = json.loads(self.models_path.read_text(encoding="utf-8")) if self.models_path.exists() else {}
         self.workflows = self.root / "workflows"; self.workflows.mkdir(exist_ok=True)
         self.runs = self.root / "runs"; self.runs.mkdir(exist_ok=True)
+        self.tables = LocalTables(self.root / "tables")
+        self.knowledge = LocalKnowledge(self.root / "knowledge")
         self.lock = threading.RLock()
         self.records = {}
         self.active = {}
@@ -239,7 +243,9 @@ class Store:
             with self.lock:
                 record = self.records[ident]
                 workflow, inputs, budget = record["workflow"], record["inputs"], record["max_steps"]
-            graph = compile_workflow(workflow, emit, record.get("models", {}))
+            graph = compile_workflow(workflow, emit, record.get("models", {}),
+                                     lambda library, query, top_k: self.knowledge.search(query, top_k),
+                                     self.tables.summarize)
             with self.lock:
                 self.active[ident] = graph
                 if record["status"] == "cancelling": graph.cancel()
@@ -305,6 +311,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send({"variables": self.server.store.environment_status()})
             if path == "/api/settings/models":
                 with self.server.store.lock: return self.send({"models": dict(self.server.store.models)})
+            if path == "/api/tables":
+                return self.send({"tables": self.server.store.tables.list()})
+            if path.startswith("/api/tables/"):
+                return self.send(self.server.store.tables.preview(path.rsplit("/", 1)[1]))
+            if path == "/api/documents":
+                return self.send({"documents": self.server.store.knowledge.list()})
             if path == "/api/workflows":
                 with self.server.store.lock:
                     items = [json.loads(p.read_text()) for p in self.server.store.workflows.glob("*.json")]
@@ -328,7 +340,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({"error": "Request must originate from the local Studio"}, 403)
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if size <= 0 or size > 2 * 1024 * 1024: raise ValueError("Request body must be 1 byte–2 MiB")
+            if size <= 0 or size > 5 * 1024 * 1024: raise ValueError("Request body must be 1 byte–5 MiB")
             body = json.loads(self.rfile.read(size), parse_constant=lambda value: (_ for _ in ()).throw(ValueError("Non-finite JSON number")))
             if not isinstance(body, dict): raise ValueError("Request must be a JSON object")
             path = urllib.parse.urlsplit(self.path).path
@@ -338,6 +350,10 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("values", {}), body.get("remove", []))})
             if path == "/api/settings/models":
                 return self.send({"models": self.server.store.update_models(body.get("models"))})
+            if path == "/api/tables":
+                return self.send({"table": self.server.store.tables.add(body.get("name"), body.get("text"), body.get("types"))}, 201)
+            if path == "/api/documents":
+                return self.send({"document": self.server.store.knowledge.add(body.get("name"), body.get("text"))}, 201)
             if path == "/api/workflows":
                 workflow = body.get("workflow")
                 if not isinstance(workflow, dict) or workflow.get("format") != "graphcore.studio.v1": raise ValueError("Invalid workflow document")
@@ -358,6 +374,21 @@ class Handler(BaseHTTPRequestHandler):
             return self.send({"error": "Not found"}, 404)
         except (ValueError, OSError, TypeError, KeyError) as error:
             self.send({"error": str(error)}, 400)
+
+    def do_DELETE(self):
+        if not self.allowed_host(): return self.send({"error": "Invalid local Host"}, 403)
+        origin = self.headers.get("Origin")
+        allowed = ("http://127.0.0.1:" + str(self.server.server_port), "http://localhost:" + str(self.server.server_port))
+        if (origin is not None and origin not in allowed) or not secrets.compare_digest(self.headers.get("X-Studio-Token", ""), self.server.token):
+            return self.send({"error": "Request must originate from the local Studio"}, 403)
+        path = urllib.parse.urlsplit(self.path).path
+        match = re.fullmatch(r"/api/documents/([a-f0-9]{32})", path)
+        if not match: return self.send({"error": "Not found"}, 404)
+        try:
+            self.server.store.knowledge.remove(match.group(1))
+            return self.send({"removed": True})
+        except ValueError as error:
+            return self.send({"error": str(error)}, 400)
 
 class Server(ThreadingHTTPServer):
     daemon_threads = True

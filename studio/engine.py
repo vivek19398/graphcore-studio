@@ -9,7 +9,7 @@ import re
 from collections import Counter
 from graphcore import Graph, Interrupt, Update, END
 
-KINDS = {"input", "agent", "model", "condition", "tool", "schema", "approval", "output"}
+KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "schema", "approval", "output"}
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool,
          "object": dict, "array": list}
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
@@ -135,6 +135,16 @@ def validate(workflow, models=None):
                             break
         if kind == "tool" and config.get("tool", "word_count") not in TOOLS:
             errors.append(ident + ": unknown registered tool")
+        if kind == "data":
+            if not isinstance(config.get("column"), str) or not config["column"].strip():
+                errors.append(ident + ": choose a numeric column")
+            if not isinstance(config.get("input_field"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config["input_field"]):
+                errors.append(ident + ": choose a table reference state field")
+        if kind == "retrieve":
+            if not isinstance(config.get("input_field", "input"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config.get("input_field", "input")):
+                errors.append(ident + ": retrieval requires a state field, such as input or request.question")
+            if "top_k" in config and (isinstance(config["top_k"], bool) or not isinstance(config["top_k"], int) or not 1 <= config["top_k"] <= 10):
+                errors.append(ident + ": results must be between 1 and 10")
         if kind == "schema":
             fields = config.get("fields", [])
             if not isinstance(fields, list) or not fields or len(fields) > 50:
@@ -302,7 +312,7 @@ def invoke_model(config, state, models=None):
         return content
     return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
-def compile_workflow(workflow, emit=lambda kind, **data: None, models=None):
+def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None):
     errors = validate(workflow, models)
     if errors: raise WorkflowError("\n".join(errors))
     version = hashlib.sha256(json.dumps(workflow, sort_keys=True).encode()).hexdigest()
@@ -323,6 +333,14 @@ def compile_workflow(workflow, emit=lambda kind, **data: None, models=None):
             elif kind == "tool":
                 value = lookup(state, config.get("input_field", "input"))
                 result = {key: TOOLS[config.get("tool", "word_count")]["function"](copy.deepcopy(value), copy.deepcopy(config))}
+            elif kind == "data":
+                if summarize is None: raise WorkflowError("Local tables are unavailable")
+                result = {key: summarize(lookup(state, config["input_field"]), config["column"])}
+            elif kind == "retrieve":
+                if retrieve is None: raise WorkflowError("Local document retrieval is unavailable")
+                query = lookup(state, config.get("input_field", "input"))
+                if not isinstance(query, str): query = json.dumps(query, ensure_ascii=False)
+                result = {key: retrieve(config.get("library", "default"), query, config.get("top_k", 4))}
             elif kind == "schema":
                 result = {key: structured(lookup(state, config.get("input_field", "input")), config["fields"], config.get("engine", "builtin"))}
             elif kind == "approval":
