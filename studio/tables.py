@@ -39,7 +39,7 @@ class LocalTables:
             return [self.metadata(p.stem, self.read(p.stem))
                     for p in sorted(self.root.glob('*.json'))]
 
-    def add(self, name, text, types=None):
+    def _parse(self, name, text, types=None):
         if not isinstance(name, str) or not name.lower().endswith('.csv') or '/' in name or '\\' in name or len(name) > 200:
             raise ValueError('Choose a CSV filename without directory paths')
         if not isinstance(text, str) or '\x00' in text or len(text.encode('utf-8')) > self.MAX_BYTES:
@@ -80,6 +80,16 @@ class LocalTables:
             raise ValueError('Invalid CSV: ' + str(error)) from error
         table = {'name': name, 'source_sha256': hashlib.sha256(text.encode()).hexdigest(),
                  'columns': [{'name': h, 'type': types.get(h, 'string'), 'nullable': True} for h in headers], 'rows': rows}
+        return table
+
+    def inspect(self, name, text):
+        table = self._parse(name, text)
+        return {'name': name, 'row_count': len(table['rows']),
+                'columns': table['columns'], 'rows': table['rows'][:5],
+                'truncated': len(table['rows']) > 5}
+
+    def add(self, name, text, types=None):
+        table = self._parse(name, text, types)
         raw = json.dumps(table, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
         ident = hashlib.sha256(raw).hexdigest()
         with self.lock:

@@ -56,6 +56,15 @@ class HttpTests(unittest.TestCase):
                 self.assertGreater(len(r.read()),100)
                 self.assertIn("frame-ancestors 'none'",r.headers['Content-Security-Policy'])
 
+    def test_table_inspect_without_artifact_creation(self):
+        before = self.store.tables.list()
+        preview = self.post('/api/tables/inspect', {'name':'preview.csv','text':'amount,active\n0.1,true\n'})
+        self.assertEqual(preview['rows'],[{'amount':'0.1','active':'true'}])
+        self.assertEqual(self.store.tables.list(),before)
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.post('/api/tables/inspect',{'name':'bad.csv','text':'a,b\n1'})
+        self.assertEqual(caught.exception.code,400)
+
     def test_typed_table_http_workflow(self):
         ref = self.post('/api/tables', {'name':'sales.csv', 'text':'amount\n0.1\n0.2\n', 'types':{'amount':'decimal'}})['table']
         with self.request('/api/tables/'+ref['id']) as response:

@@ -34,6 +34,17 @@ class TableTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.tables.add('invalid.csv','amount\n'+value,{'amount':kind})
 
+    def test_inspection_is_bounded_and_does_not_persist(self):
+        preview = self.tables.inspect('quoted.csv', '"customer,name",amount\n"Acme, Inc",0.1\n'+'Beta,0.2\n'*8)
+        self.assertEqual(preview['row_count'],9)
+        self.assertEqual(len(preview['rows']),5)
+        self.assertEqual(preview['columns'][0]['name'],'customer,name')
+        self.assertEqual(preview['rows'][0]['customer,name'],'Acme, Inc')
+        self.assertTrue(preview['truncated'])
+        self.assertEqual(self.tables.list(),[])
+        with self.assertRaises(ValueError): self.tables.inspect('bad.csv','a,b\n1')
+        self.assertEqual(self.tables.list(),[])
+
     def test_invalid_sources_and_types(self):
         for name,text,types in [('x.csv','a,a\n1,2',{}), ('x.csv','a,b\n1',{}),
                                 ('x.csv','a\nNaN',{'a':'decimal'}), ('../x.csv','a\n1',{}),

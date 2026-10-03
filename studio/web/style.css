@@ -40,3 +40,5 @@
 .getting-started-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#f0eafa;color:#7b63ac;font-size:18px}
 @media(max-width:650px){.getting-started-grid{grid-template-columns:1fr}.getting-started-card{min-height:0}}
 .knowledge-list{max-height:38vh;overflow:auto;margin:12px 0}.knowledge-row{gap:12px}.knowledge-row>span{display:grid;gap:5px;min-width:0}.knowledge-row strong{overflow-wrap:anywhere}.knowledge-row small{font-size:10px;color:#8b7b98}
+
+.table-mapping{max-height:45vh;overflow:auto;margin:16px 0}.table-column{display:grid;grid-template-columns:minmax(0,1fr) 160px;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid #e8e1ef}.table-column span{display:grid;gap:6px;min-width:0}.table-column strong,.table-column small{overflow-wrap:anywhere}.table-column small{font-size:11px;color:#766d81}.table-column select{padding:8px;border:1px solid #ddd4e8;border-radius:7px;background:white;color:#44394f}@media(max-width:500px){.table-column{grid-template-columns:1fr;gap:8px}}

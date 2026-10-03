@@ -40,3 +40,9 @@ These checks do not include browser-level visual interaction or remote Linux/Win
 - Actual browser CSV import, preview, generated summary workflow and native execution passed with synthetic data in an isolated temporary workspace.
 - Adaptive decimal precision regression and bounded numeric inputs passed; 36 unit/compiler/Python tests and 8 HTTP tests passed.
 - Fresh macOS 11 ARM64 wheel and sdist build, archive inclusion and Twine checks passed. Version remains 0.2.2; these are development artifacts, not upload candidates.
+
+## October 3: guided CSV import
+
+- 37 unit/compiler/Python tests and 9 loopback HTTP tests passed, including bounded nonpersisting CSV inspection.
+- Actual browser column selection, inline invalid-type feedback, correction and successful import passed.
+- JavaScript syntax and diff checks passed. No cross-platform CI or release upload performed.

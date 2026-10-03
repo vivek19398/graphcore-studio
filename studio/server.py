@@ -350,6 +350,8 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("values", {}), body.get("remove", []))})
             if path == "/api/settings/models":
                 return self.send({"models": self.server.store.update_models(body.get("models"))})
+            if path == "/api/tables/inspect":
+                return self.send(self.server.store.tables.inspect(body.get("name"), body.get("text")))
             if path == "/api/tables":
                 return self.send({"table": self.server.store.tables.add(body.get("name"), body.get("text"), body.get("types"))}, 201)
             if path == "/api/documents":
