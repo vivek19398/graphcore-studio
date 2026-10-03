@@ -9,7 +9,7 @@ import re
 from collections import Counter
 from graphcore import Graph, Interrupt, Update, END
 
-KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "schema", "approval", "output"}
+KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "data_filter", "schema", "approval", "output"}
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool,
          "object": dict, "array": list}
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
@@ -135,11 +135,17 @@ def validate(workflow, models=None):
                             break
         if kind == "tool" and config.get("tool", "word_count") not in TOOLS:
             errors.append(ident + ": unknown registered tool")
-        if kind == "data":
+        if kind in ("data", "data_filter"):
             if not isinstance(config.get("column"), str) or not config["column"].strip():
-                errors.append(ident + ": choose a numeric column")
+                errors.append(ident + ": choose a column")
             if not isinstance(config.get("input_field"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config["input_field"]):
                 errors.append(ident + ": choose a table reference state field")
+        if kind == "data_filter":
+            operator = config.get("operator", "eq")
+            if operator not in ("eq","ne","gt","gte","lt","lte","contains","is_null","not_null"):
+                errors.append(ident + ": choose a supported filter operator")
+            if operator not in ("is_null","not_null") and (not isinstance(config.get("value"), str) or not 1 <= len(config["value"]) <= 4096):
+                errors.append(ident + ": enter a comparison value as text")
         if kind == "retrieve":
             if not isinstance(config.get("input_field", "input"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config.get("input_field", "input")):
                 errors.append(ident + ": retrieval requires a state field, such as input or request.question")
@@ -312,7 +318,7 @@ def invoke_model(config, state, models=None):
         return content
     return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
-def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None):
+def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None, filter_table=None):
     errors = validate(workflow, models)
     if errors: raise WorkflowError("\n".join(errors))
     version = hashlib.sha256(json.dumps(workflow, sort_keys=True).encode()).hexdigest()
@@ -333,6 +339,9 @@ def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retr
             elif kind == "tool":
                 value = lookup(state, config.get("input_field", "input"))
                 result = {key: TOOLS[config.get("tool", "word_count")]["function"](copy.deepcopy(value), copy.deepcopy(config))}
+            elif kind == "data_filter":
+                if filter_table is None: raise WorkflowError("Local table filtering is unavailable")
+                result = {key: filter_table(lookup(state, config["input_field"]), config["column"], config.get("operator", "eq"), config.get("value"))}
             elif kind == "data":
                 if summarize is None: raise WorkflowError("Local tables are unavailable")
                 result = {key: summarize(lookup(state, config["input_field"]), config["column"])}

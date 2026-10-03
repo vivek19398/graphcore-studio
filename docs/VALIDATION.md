@@ -46,3 +46,9 @@ These checks do not include browser-level visual interaction or remote Linux/Win
 - 37 unit/compiler/Python tests and 9 loopback HTTP tests passed, including bounded nonpersisting CSV inspection.
 - Actual browser column selection, inline invalid-type feedback, correction and successful import passed.
 - JavaScript syntax and diff checks passed. No cross-platform CI or release upload performed.
+
+## October 3: typed table filter
+
+- 39 unit/compiler/Python tests and 9 loopback HTTP tests passed; the HTTP workflow now checks filtering before aggregation.
+- Actual browser verified filter inspector controls and native filter → summary → output (`0.5`), with no model call.
+- JavaScript syntax and diff checks passed; no native runtime changes or added dependencies.

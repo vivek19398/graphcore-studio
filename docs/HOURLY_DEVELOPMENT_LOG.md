@@ -22,3 +22,14 @@
 - Delivery: continuing on `codex/local-data-foundation`; corresponding feature commit is recorded in Git history.
 - Usage: start 8% five-hour / 1% weekly; final check 12% / 2%, below the 60% threshold.
 - Next step: bounded deterministic table filtering, with explicit null/type semantics, a canvas node and focused tests.
+
+## October 3, 2026 — Deterministic table filtering
+
+- User explicitly requested continuation after the below-50% stop rule; this interactive session resumed while the hourly automation rule remains unchanged.
+- Added Table filter canvas node with typed comparison forms, explicit null controls and immutable derived artifacts carrying immediate parent provenance.
+- Filtering preserves source rows/schema and order, supports exact decimal comparisons, rejects incompatible operators/types and reuses identical derived artifacts.
+- Validation: 39 unit/compiler/Python tests and 9 HTTP tests passed (48 total), including null semantics, numeric ordering, boolean/text matching, invalid configs, empty results and native filter → summary execution. JavaScript syntax and diff checks passed.
+- Actual browser verified inspector null/value controls and full workflow result `Filtered total: 0.5`; screenshot `/tmp/graphcore-filter-result.jpg`.
+- Delivery continues on `codex/local-data-foundation`; no default-branch merge or PyPI publication.
+- Usage at start: 13% five-hour / 2% weekly. User's explicit continuation authorized this session at that usage.
+- Next step: grouping and exact decimal aggregation with bounded output and clear null/group-key semantics.

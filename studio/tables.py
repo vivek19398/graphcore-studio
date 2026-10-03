@@ -32,7 +32,8 @@ class LocalTables:
     def metadata(self, ident, table):
         return {'type': 'table_ref', 'id': ident, 'name': table['name'],
                 'row_count': len(table['rows']), 'columns': table['columns'],
-                'source_sha256': table['source_sha256']}
+                'source_sha256': table['source_sha256'],
+                **({'provenance': table['provenance']} if 'provenance' in table else {})}
 
     def list(self):
         with self.lock:
@@ -89,7 +90,9 @@ class LocalTables:
                 'truncated': len(table['rows']) > 5}
 
     def add(self, name, text, types=None):
-        table = self._parse(name, text, types)
+        return self._persist(self._parse(name, text, types))
+
+    def _persist(self, table):
         raw = json.dumps(table, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode()
         ident = hashlib.sha256(raw).hexdigest()
         with self.lock:
@@ -124,3 +127,51 @@ class LocalTables:
                 'count': len(values), 'null_count': len(table['rows']) - len(values),
                 'sum': str(total), 'min': str(min(values)) if values else None,
                 'max': str(max(values)) if values else None}
+
+    def filter(self, reference, column, operator, value=None):
+        """Typed comparisons; null cells only match explicit null operators."""
+        if not isinstance(reference, dict) or reference.get('type') != 'table_ref':
+            raise ValueError('Table filter requires a table_ref from the Data workspace')
+        table = self.read(reference.get('id'))
+        schema = {c['name']: c['type'] for c in table['columns']}
+        if not isinstance(column, str) or column not in schema:
+            raise ValueError('Filter column does not exist in the source table')
+        kind = schema[column]
+        operators = ('eq','ne','gt','gte','lt','lte','contains','is_null','not_null')
+        if operator not in operators: raise ValueError('Unsupported filter operator')
+        if operator in ('gt','gte','lt','lte') and kind not in ('integer','decimal'):
+            raise ValueError('Ordered comparisons require an integer or decimal column')
+        if operator == 'contains' and kind != 'string':
+            raise ValueError('Contains requires a text column')
+        expected = None
+        if operator not in ('is_null','not_null'):
+            if not isinstance(value, str) or not value or len(value) > 4096:
+                raise ValueError('Comparison value must be nonempty text up to 4096 characters; use Is null for empty cells')
+            # Use the import conversion contract rather than a second coercion rule.
+            wire = io.StringIO()
+            writer = csv.writer(wire)
+            writer.writerow([column]); writer.writerow([value])
+            expected = self._parse('comparison.csv', wire.getvalue(), {column:kind})['rows'][0][column]
+            if kind == 'decimal': expected = Decimal(expected)
+        def matches(row):
+            actual = row[column]
+            if operator == 'is_null': return actual is None
+            if operator == 'not_null': return actual is not None
+            if actual is None: return False
+            if kind == 'decimal': actual = Decimal(actual)
+            if operator == 'eq': return actual == expected
+            if operator == 'ne': return actual != expected
+            if operator == 'gt': return actual > expected
+            if operator == 'gte': return actual >= expected
+            if operator == 'lt': return actual < expected
+            if operator == 'lte': return actual <= expected
+            return expected in actual
+        rows = [row for row in table['rows'] if matches(row)]
+        derived = {'name': ('filtered-' + table['name'])[-200:],
+                   'columns': table['columns'], 'rows': rows,
+                   'source_sha256': table['source_sha256'],
+                   'provenance': {'operation':'filter', 'parent_id':reference['id'],
+                                  'column':column, 'operator':operator,
+                                  'value':value if operator not in ('is_null','not_null') else None,
+                                  'source_rows':len(table['rows']), 'matched_rows':len(rows)}}
+        return self._persist(derived)

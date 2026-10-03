@@ -77,13 +77,16 @@ class HttpTests(unittest.TestCase):
             {'id':'summary','type':'data','config':{'input_field':'table','column':'amount','output_key':'stats'}},
             {'id':'end','type':'output','config':{'template':'{{stats.sum}}'}}],
             'edges':[{'source':'start','target':'summary'},{'source':'summary','target':'end'}]}
+        workflow['nodes'].insert(1,{'id':'filter','type':'data_filter','config':{'input_field':'table','column':'amount','operator':'gte','value':'0.2','output_key':'filtered'}})
+        workflow['nodes'][2]['config']['input_field']='filtered'
+        workflow['edges']=[{'source':'start','target':'filter'},{'source':'filter','target':'summary'},{'source':'summary','target':'end'}]
         ident = self.post('/api/runs', {'workflow':workflow,'inputs':{'table':ref}})['id']
         for _ in range(100):
             with self.request('/api/runs/'+ident) as response: result=json.loads(response.read())
             if result['status'] in ('completed','failed'): break
             time.sleep(.02)
         self.assertEqual(result['status'],'completed',result.get('error'))
-        self.assertEqual(result['state']['output'],'0.3')
+        self.assertEqual(result['state']['output'],'0.2')
 
     def test_cross_origin_and_missing_token_rejected(self):
         for headers in [{}, {'X-Studio-Token':self.server.token,'Origin':'https://evil.invalid'}]:

@@ -55,3 +55,19 @@ Next increments:
 6. External action preparation, exact-payload approvals, durable action ledger and recovery tests before Outlook send.
 
 This first increment does not implement the full enterprise specification, external connectors, workbook editing, team identity or remote deployment.
+
+## Filter a table before calculating
+
+Add a **Table filter** node between Input and Data summary. Choose the table reference field (`table`), an exact column name (`amount`), a comparison (`At least`), and a value (`0.2`). Set its output field to `filtered`; configure Data summary to read `filtered`. For values 0.1, 0.2 and 0.3 this produces an exact sum of `0.5`.
+
+Supported comparisons: equals / does not equal for all types, greater / at least / less / at most for numeric columns, contains for text, and explicit Is null / Is not null. Text comparisons are case-sensitive. Enter comparison values as text; conversion follows the declared column type. Decimal comparisons are exact. Empty comparison values are rejected; use a null operator for empty CSV cells. Null cells never match ordinary comparisons, including Does not equal.
+
+Filtering writes a new immutable artifact with the original column schema and row order, leaving the source unchanged. Its reference includes provenance (parent artifact ID, operation, column, operator, comparison value, source row count and matched count). Identical operations on the same artifact reuse the same ID. Zero matches return an empty table with its schema; a later summary reports sum `0`, count 0 and null min/max. The existing 100-artifact workspace cap also applies to derived tables. Chain filter nodes for multiple required predicates; OR groups and expressions are not implemented in this increment.
+
+JSON node configuration:
+
+```json
+{"id":"filter","type":"data_filter","config":{"input_field":"table","column":"amount","operator":"gte","value":"0.2","output_key":"filtered"}}
+```
+
+Operator IDs are `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `is_null`, `not_null`. Null operators do not require `value`.
