@@ -94,3 +94,27 @@ Example: team A has 0.1 and 0.2, team B has 0.4. Grouping produces sums `0.3` an
 ```json
 {"id":"group","type":"data_group","config":{"input_field":"table","group_column":"team","column":"amount","null_keys":"include","max_groups":100,"output_key":"grouped"}}
 ```
+
+## Reconcile two tables
+
+Import both CSVs with explicit column types. For each source, open **Preview / use**, set **Workflow input name** to `left` or `right`, and click **Use as workflow input**. Named references let you keep multiple tables in one workflow. Reusing an input name replaces that reference.
+
+Add a **Table reconciliation** node. Map the two state fields, key columns and value columns explicitly (column names may differ). Connect to Output and render `{{comparison.summary}}`, using the configured output field name. The result contains `table` (an immutable reference) and `summary` (bounded status counts); full comparison rows remain in the artifact store. A Table filter can read `comparison.table`, filter `status` equals `changed`, and pass the result to a review/model node later.
+
+| Output column | Meaning |
+|---|---|
+| `key` | Compared key; numeric keys use an exact decimal representation |
+| `left_value`, `right_value` | Mapped values, with numeric values represented as exact decimal strings |
+| `left_present`, `right_present` | Whether a source row exists, independently of null values |
+| `status` | `matched`, `changed`, `left_only`, or `right_only` |
+| `delta` | Exact left minus right for two non-null numeric values; otherwise null |
+
+Rows follow left-key first appearance, then right-only key first appearance. Text equality is case-sensitive; numeric columns compare by exact value. Mapped types must match or both be numeric (integer/decimal). Both-null mapped values count as matched; one-null versus non-null is changed. Missing rows remain distinct from present rows containing null.
+
+Duplicate policy defaults to **Fail on duplicates**. Explicit alternatives select the first or last source row for each key; summary/provenance records duplicate counts. Null keys default to failure, with explicit exclusion available and excluded-row counts recorded. The maximum result size defaults to 10,000 rows and can be set up to 20,000. Limit, duplicate, type and null-key failures do not persist a partial reconciliation artifact. Provenance records both parent IDs and mappings. Repeating the same operation reuses its artifact.
+
+```json
+{"id":"compare","type":"data_reconcile","config":{"left_field":"left","right_field":"right","left_key":"id","right_key":"code","left_column":"amount","right_column":"total","duplicates":"reject","null_keys":"reject","max_rows":10000,"output_key":"comparison"}}
+```
+
+This increment supports a single key and single compared value per side. Composite keys, multi-column comparisons, tolerances, fuzzy matching and writing changes back to either source are not implemented.

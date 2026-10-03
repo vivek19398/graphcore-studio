@@ -9,7 +9,7 @@ import re
 from collections import Counter
 from graphcore import Graph, Interrupt, Update, END
 
-KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "data_filter", "data_group", "schema", "approval", "output"}
+KINDS = {"input", "agent", "model", "condition", "tool", "retrieve", "data", "data_filter", "data_group", "data_reconcile", "schema", "approval", "output"}
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool,
          "object": dict, "array": list}
 KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
@@ -140,6 +140,18 @@ def validate(workflow, models=None):
                 errors.append(ident + ": choose a column")
             if not isinstance(config.get("input_field"), str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", config["input_field"]):
                 errors.append(ident + ": choose a table reference state field")
+        if kind == "data_reconcile":
+            for field in ("left_field","right_field"):
+                if not isinstance(config.get(field),str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}",config[field]):
+                    errors.append(ident + ": choose a table reference state field for " + field)
+            for field in ("left_key","right_key","left_column","right_column"):
+                if not isinstance(config.get(field),str) or not config[field].strip():
+                    errors.append(ident + ": choose a mapped column for " + field)
+            if config.get("duplicates","reject") not in ("reject","first","last") or config.get("null_keys","reject") not in ("reject","exclude"):
+                errors.append(ident + ": choose duplicate and null-key policies")
+            limit = config.get("max_rows",10000)
+            if isinstance(limit,bool) or not isinstance(limit,int) or not 1 <= limit <= 20000:
+                errors.append(ident + ": row limit must be between 1 and 20000")
         if kind == "data_group":
             if not isinstance(config.get("group_column"), str) or not config["group_column"].strip():
                 errors.append(ident + ": choose a group column")
@@ -326,7 +338,7 @@ def invoke_model(config, state, models=None):
         return content
     return content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
 
-def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None, filter_table=None, group_table=None):
+def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retrieve=None, summarize=None, filter_table=None, group_table=None, reconcile_tables=None):
     errors = validate(workflow, models)
     if errors: raise WorkflowError("\n".join(errors))
     version = hashlib.sha256(json.dumps(workflow, sort_keys=True).encode()).hexdigest()
@@ -347,6 +359,9 @@ def compile_workflow(workflow, emit=lambda kind, **data: None, models=None, retr
             elif kind == "tool":
                 value = lookup(state, config.get("input_field", "input"))
                 result = {key: TOOLS[config.get("tool", "word_count")]["function"](copy.deepcopy(value), copy.deepcopy(config))}
+            elif kind == "data_reconcile":
+                if reconcile_tables is None: raise WorkflowError("Local reconciliation is unavailable")
+                result = {key: reconcile_tables(lookup(state,config["left_field"]),lookup(state,config["right_field"]),config["left_key"],config["right_key"],config["left_column"],config["right_column"],config.get("duplicates","reject"),config.get("null_keys","reject"),config.get("max_rows",10000))}
             elif kind == "data_group":
                 if group_table is None: raise WorkflowError("Local grouped aggregation is unavailable")
                 result = {key: group_table(lookup(state, config["input_field"]), config["group_column"], config["column"], config.get("null_keys", "include"), config.get("max_groups", 100))}

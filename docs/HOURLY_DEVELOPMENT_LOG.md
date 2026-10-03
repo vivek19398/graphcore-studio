@@ -44,3 +44,14 @@
 - No native runtime changes, dependencies or live model calls. Delivery remains `codex/local-data-foundation`; no PyPI release.
 - Usage at start 18% five-hour / 3% weekly.
 - Next step: table reconciliation with explicit key mapping and duplicate policies, then XLSX support.
+
+## October 3, 2026 — Explicit table reconciliation
+
+- Resumed under the user's interactive continuation. Implemented one-key/one-value full outer reconciliation with explicit mappings, typed equality and exact left-minus-right decimal deltas.
+- Added duplicate reject/first/last policies, null-key reject/exclude policies, status counts and row bounds. Missing rows are distinguished from present rows with null values. Results retain both source artifact IDs and mappings.
+- Added named table-reference inputs in Data workspace; browser verified adding `source_left` preserved other references.
+- Validation: 46 unit/compiler/Python tests plus 11 HTTP tests passed (57 total), including numeric cross-type keys, mapped column names, duplicate/null policies, no partial writes, native delta summary and HTTP preview. JavaScript syntax and diff checks passed.
+- Browser verified inspector controls and `Changed: 1. Left only: 1. Right only: 1.`; evidence `/tmp/graphcore-reconciliation-result.jpg`.
+- Delivery remains the existing development branch, with no live provider calls or PyPI publication.
+- Start usage: 22% five-hour / 3% weekly. Interactive resume does not change the scheduled below-50% stop rule.
+- Next step: XLSX support with sheet selection, typed import and formula-cache warnings; research the implementation dependency before adding it.

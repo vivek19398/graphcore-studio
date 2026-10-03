@@ -136,6 +136,56 @@ class TableTests(unittest.TestCase):
         workflow['nodes'][1]['config']['max_groups']=501
         self.assertTrue(validate(workflow))
 
+    def test_reconciliation_statuses_exact_delta_and_mapped_names(self):
+        left=self.tables.add('left.csv','id,amount\na,0.10\nb,0.3\nc,\nd,0.4\n',{'amount':'decimal'})
+        right=self.tables.add('right.csv','code,total\na,0.1\nb,0.2\nc,\ne,0.5\n',{'total':'decimal'})
+        result=self.tables.reconcile(left,right,'id','code','amount','total')
+        self.assertEqual({k:result['summary'][k] for k in ('matched','changed','left_only','right_only')},
+                         {'matched':2,'changed':1,'left_only':1,'right_only':1})
+        rows=self.tables.read(result['table']['id'])['rows']
+        self.assertEqual([r['key'] for r in rows],list('abcde'))
+        self.assertEqual(rows[1]['delta'],'0.1')
+        self.assertTrue(rows[2]['left_present'] and rows[2]['right_present'])
+        self.assertIsNone(rows[2]['left_value'])
+        self.assertFalse(rows[4]['left_present'])
+        self.assertEqual(result,self.tables.reconcile(left,right,'id','code','amount','total'))
+        self.assertEqual(result['table']['provenance']['parent_ids'],[left['id'],right['id']])
+        self.assertNotIn('rows',result['table'])
+
+    def test_reconciliation_duplicates_nulls_limits_and_types(self):
+        left=self.tables.add('left.csv','id,amount\na,1\na,2\n,3\n',{'amount':'integer'})
+        right=self.tables.add('right.csv','id,amount\na,2.0\n',{'amount':'decimal'})
+        before=self.tables.list()
+        with self.assertRaises(ValueError): self.tables.reconcile(left,right,'id','id','amount','amount')
+        with self.assertRaises(ValueError): self.tables.reconcile(left,right,'id','id','amount','amount','first')
+        self.assertEqual(self.tables.list(),before)
+        first=self.tables.reconcile(left,right,'id','id','amount','amount','first','exclude')
+        last=self.tables.reconcile(left,right,'id','id','amount','amount','last','exclude')
+        self.assertEqual(first['summary']['changed'],1)
+        self.assertEqual(last['summary']['matched'],1)
+        self.assertEqual(last['summary']['left_duplicates'],1)
+        self.assertEqual(last['summary']['left_null_keys_excluded'],1)
+        other=self.tables.add('other.csv','id,amount\nb,1\nc,2\n',{'amount':'integer'})
+        before=self.tables.list()
+        with self.assertRaises(ValueError): self.tables.reconcile(left,other,'id','id','amount','amount','first','exclude',1)
+        with self.assertRaises(ValueError): self.tables.reconcile(left,right,'id','amount','amount','amount','first','exclude')
+        self.assertEqual(self.tables.list(),before)
+
+    def test_native_reconciliation_pipeline(self):
+        left=self.tables.add('left.csv','id,amount\n1,0.3\n',{'id':'integer','amount':'decimal'})
+        right=self.tables.add('right.csv','id,amount\n1.0,0.2\n',{'id':'decimal','amount':'decimal'})
+        workflow={'format':'graphcore.studio.v1','nodes':[
+            {'id':'start','type':'input'},
+            {'id':'compare','type':'data_reconcile','config':{'left_field':'left','right_field':'right','left_key':'id','right_key':'id','left_column':'amount','right_column':'amount','output_key':'comparison'}},
+            {'id':'summary','type':'data','config':{'input_field':'comparison.table','column':'delta','output_key':'stats'}},
+            {'id':'end','type':'output','config':{'template':'{{stats.sum}}'}}],
+            'edges':[{'source':'start','target':'compare'},{'source':'compare','target':'summary'},{'source':'summary','target':'end'}]}
+        with compile_workflow(workflow,summarize=self.tables.summarize,reconcile_tables=self.tables.reconcile) as graph:
+            result=graph.invoke({'left':left,'right':right})
+        self.assertEqual(result.state['output'],'0.1')
+        workflow['nodes'][1]['config']['duplicates']='sum'
+        self.assertTrue(validate(workflow))
+
     def test_native_data_graph_and_bounded_preview(self):
         ref = self.tables.add('numbers.csv','amount\n'+'1\n'*25,{'amount':'integer'})
         self.assertEqual(len(self.tables.preview(ref['id'])['rows']),20)

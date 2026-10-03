@@ -65,6 +65,26 @@ class HttpTests(unittest.TestCase):
             self.post('/api/tables/inspect',{'name':'bad.csv','text':'a,b\n1'})
         self.assertEqual(caught.exception.code,400)
 
+    def test_reconciliation_http_workflow(self):
+        refs=[self.post('/api/tables',{'name':name+'.csv','text':text,'types':{'amount':'decimal'}})['table']
+              for name,text in [('left','id,amount\na,0.3\nb,0.1\n'),('right','id,amount\na,0.2\nc,0.4\n')]]
+        workflow={'format':'graphcore.studio.v1','nodes':[
+            {'id':'start','type':'input'},
+            {'id':'compare','type':'data_reconcile','config':{'left_field':'left','right_field':'right','left_key':'id','right_key':'id','left_column':'amount','right_column':'amount','output_key':'comparison'}},
+            {'id':'end','type':'output','config':{'template':'{{comparison.summary}}'}}],
+            'edges':[{'source':'start','target':'compare'},{'source':'compare','target':'end'}]}
+        ident=self.post('/api/runs',{'workflow':workflow,'inputs':dict(zip(('left','right'),refs))})['id']
+        for _ in range(100):
+            with self.request('/api/runs/'+ident) as response: result=json.loads(response.read())
+            if result['status'] in ('completed','failed'): break
+            time.sleep(.02)
+        self.assertEqual(result['status'],'completed',result.get('error'))
+        self.assertEqual(result['state']['comparison']['summary']['changed'],1)
+        with self.request('/api/tables/'+result['state']['comparison']['table']['id']) as response:
+            rows=json.loads(response.read())['rows']
+        self.assertEqual([r['status'] for r in rows],['changed','left_only','right_only'])
+        self.assertEqual(rows[0]['delta'],'0.1')
+
     def test_grouped_table_http_workflow(self):
         ref=self.post('/api/tables',{'name':'teams.csv','text':'team,amount\na,0.1\na,0.2\nb,0.4\n','types':{'amount':'decimal'}})['table']
         workflow={'format':'graphcore.studio.v1','nodes':[

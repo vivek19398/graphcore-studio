@@ -220,3 +220,77 @@ class LocalTables:
                                   'value':value if operator not in ('is_null','not_null') else None,
                                   'source_rows':len(table['rows']), 'matched_rows':len(rows)}}
         return self._persist(derived)
+
+    def reconcile(self, left_ref, right_ref, left_key, right_key, left_column, right_column,
+                  duplicates='reject', null_keys='reject', max_rows=10000):
+        """Bounded full outer comparison of one key and one value per side."""
+        if duplicates not in ('reject','first','last') or null_keys not in ('reject','exclude'):
+            raise ValueError('Choose a supported duplicate and null-key policy')
+        if isinstance(max_rows,bool) or not isinstance(max_rows,int) or not 1 <= max_rows <= self.MAX_ROWS:
+            raise ValueError('Reconciliation row limit must be between 1 and 20000')
+        tables = []
+        for reference in (left_ref,right_ref):
+            if not isinstance(reference,dict) or reference.get('type') != 'table_ref':
+                raise ValueError('Reconciliation requires two table_ref inputs')
+            tables.append(self.read(reference.get('id')))
+        left,right = tables
+        schemas = [{c['name']:c['type'] for c in table['columns']} for table in tables]
+        for schema,key,column in zip(schemas,(left_key,right_key),(left_column,right_column)):
+            if not isinstance(key,str) or key not in schema or not isinstance(column,str) or column not in schema:
+                raise ValueError('Mapped key or value column does not exist')
+        def compatible(a,b):
+            return a == b or (a in ('integer','decimal') and b in ('integer','decimal'))
+        key_types = [schemas[0][left_key],schemas[1][right_key]]
+        value_types = [schemas[0][left_column],schemas[1][right_column]]
+        if not compatible(*key_types) or not compatible(*value_types):
+            raise ValueError('Mapped columns must have matching types or both be numeric')
+        numeric_key = key_types[0] in ('integer','decimal')
+        numeric_value = value_types[0] in ('integer','decimal')
+        def index(table,key,side):
+            items, duplicate_count, excluded = {},0,0
+            for row in table['rows']:
+                value = row[key]
+                if value is None:
+                    if null_keys == 'reject': raise ValueError(side + ' table has a null key; choose Exclude null keys or fix the source')
+                    excluded += 1
+                    continue
+                identity = Decimal(str(value)) if numeric_key else value
+                if identity in items:
+                    duplicate_count += 1
+                    if duplicates == 'reject': raise ValueError(side + ' table has duplicate keys; choose First or Last explicitly or fix the source')
+                    if duplicates == 'first': continue
+                items[identity] = row
+            return items,duplicate_count,excluded
+        li,ld,ln = index(left,left_key,'Left')
+        ri,rd,rn = index(right,right_key,'Right')
+        keys = list(li) + [k for k in ri if k not in li]
+        if len(keys) > max_rows: raise ValueError('Reconciliation row limit exceeded; filter sources or increase the limit')
+        rows,counts = [],dict.fromkeys(('matched','changed','left_only','right_only'),0)
+        for key in keys:
+            l,r = li.get(key),ri.get(key)
+            lv = l[left_column] if l is not None else None
+            rv = r[right_column] if r is not None else None
+            a = Decimal(str(lv)) if numeric_value and lv is not None else lv
+            b = Decimal(str(rv)) if numeric_value and rv is not None else rv
+            status = 'right_only' if l is None else 'left_only' if r is None else 'matched' if a == b else 'changed'
+            delta = self._statistics([a,b.copy_negate()],2)['sum'] if numeric_value and a is not None and b is not None else None
+            counts[status] += 1
+            rows.append({'key':str(key) if numeric_key else key,
+                         'left_value':str(a) if numeric_value and a is not None else a,
+                         'right_value':str(b) if numeric_value and b is not None else b,
+                         'left_present':l is not None,'right_present':r is not None,'status':status,'delta':delta})
+        key_type = 'decimal' if numeric_key else key_types[0]
+        value_type = 'decimal' if numeric_value else value_types[0]
+        columns = [{'name':'key','type':key_type,'nullable':False}]
+        columns += [{'name':name,'type':value_type,'nullable':True} for name in ('left_value','right_value')]
+        columns += [{'name':name,'type':'boolean','nullable':False} for name in ('left_present','right_present')]
+        columns += [{'name':'status','type':'string','nullable':False},{'name':'delta','type':'decimal','nullable':True}]
+        provenance = {'operation':'reconcile','parent_ids':[left_ref['id'],right_ref['id']],
+                      'left_key':left_key,'right_key':right_key,'left_column':left_column,'right_column':right_column,
+                      'duplicates':duplicates,'null_keys':null_keys,'max_rows':max_rows,
+                      'left_duplicates':ld,'right_duplicates':rd,'left_null_keys_excluded':ln,'right_null_keys_excluded':rn}
+        source_hash = hashlib.sha256((left['source_sha256']+':'+right['source_sha256']).encode()).hexdigest()
+        reference = self._persist({'name':'reconciled.csv','columns':columns,'rows':rows,
+                                   'source_sha256':source_hash,'provenance':provenance})
+        return {'table':reference,'summary':dict(counts,total_rows=len(rows),left_duplicates=ld,right_duplicates=rd,
+                                               left_null_keys_excluded=ln,right_null_keys_excluded=rn)}

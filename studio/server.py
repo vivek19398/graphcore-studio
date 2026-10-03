@@ -245,7 +245,7 @@ class Store:
                 workflow, inputs, budget = record["workflow"], record["inputs"], record["max_steps"]
             graph = compile_workflow(workflow, emit, record.get("models", {}),
                                      lambda library, query, top_k: self.knowledge.search(query, top_k),
-                                     self.tables.summarize, self.tables.filter, self.tables.group)
+                                     self.tables.summarize, self.tables.filter, self.tables.group, self.tables.reconcile)
             with self.lock:
                 self.active[ident] = graph
                 if record["status"] == "cancelling": graph.cancel()

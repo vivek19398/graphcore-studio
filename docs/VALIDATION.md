@@ -58,3 +58,9 @@ These checks do not include browser-level visual interaction or remote Linux/Win
 - 43 unit/compiler/Python tests and 10 loopback HTTP tests passed; grouped results preview and native group → summary pipelines verified.
 - Actual browser grouped inspector and execution returned `Groups: 2. Total: 0.7`.
 - JavaScript syntax and diff checks passed. Group limits, no partial persistence, null policies and decimal key equality have regression coverage.
+
+## October 3: explicit table reconciliation
+
+- 46 unit/compiler/Python tests and 11 local HTTP tests passed.
+- Browser verified mapped-column inspector, reconciliation results, artifact visibility and named input reference assignment.
+- JavaScript syntax and diff checks passed. No added dependencies or native scheduling changes.
