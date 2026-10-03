@@ -29,6 +29,8 @@ keywords = ["agents", "agentic-workflows", "graph", "C++", "visual-workflow-buil
 dependencies = [
   "openrouter>=0.10.8,<1",
   "pydantic>=2,<3",
+  "openpyxl>=3.1.5,<4",
+  "defusedxml>=0.7.1,<1",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +58,7 @@ sdist.include = [
   "studio/engine.py",
   "studio/knowledge.py",
   "studio/tables.py",
+  "studio/workbooks.py",
   "studio/example_plugin.py",
   "studio/server.py",
   "studio/templates/**",

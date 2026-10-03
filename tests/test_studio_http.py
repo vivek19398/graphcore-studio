@@ -65,6 +65,20 @@ class HttpTests(unittest.TestCase):
             self.post('/api/tables/inspect',{'name':'bad.csv','text':'a,b\n1'})
         self.assertEqual(caught.exception.code,400)
 
+    def test_xlsx_sheets_preview_and_typed_import(self):
+        from tests.test_workbooks import fixture
+        body={'name':'sales.xlsx','content':fixture()}
+        sheets=self.post('/api/xlsx/sheets',body)
+        self.assertEqual(sheets['sheets'][0]['name'],'Sales')
+        body.update(sheet='Sales',header_row=2)
+        preview=self.post('/api/xlsx/inspect',body)
+        self.assertEqual(preview['row_count'],2)
+        body['types']={'amount':'decimal','active':'boolean'}
+        ref=self.post('/api/xlsx',body)['table']
+        with self.request('/api/tables/'+ref['id']) as response: table=json.loads(response.read())
+        self.assertEqual(table['rows'][0]['amount'],'0.1')
+        self.assertEqual(ref['provenance']['sheet'],'Sales')
+
     def test_reconciliation_http_workflow(self):
         refs=[self.post('/api/tables',{'name':name+'.csv','text':text,'types':{'amount':'decimal'}})['table']
               for name,text in [('left','id,amount\na,0.3\nb,0.1\n'),('right','id,amount\na,0.2\nc,0.4\n')]]

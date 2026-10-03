@@ -118,3 +118,15 @@ Duplicate policy defaults to **Fail on duplicates**. Explicit alternatives selec
 ```
 
 This increment supports a single key and single compared value per side. Composite keys, multi-column comparisons, tolerances, fuzzy matching and writing changes back to either source are not implemented.
+
+## Import an XLSX worksheet
+
+In **Data workspace**, choose **Choose CSV / XLSX**, select a `.xlsx` file, choose a visible worksheet and its header row (1–100), then review columns. Assign text, integer, decimal or boolean types before importing. Imported tables can use the same summary, filter, grouped summary and reconciliation nodes as CSV tables.
+
+Formula cells use workbook caches; GraphCore does not calculate formulas. Acknowledge the cache warning before importing. Missing cached results block import: recalculate and save in Excel, then choose the file again. Cache freshness cannot be verified. Dates become ISO text; cell display formatting is omitted and numeric values retain the workbook's stored precision. The original workbook remains unchanged.
+
+Imports allow 2 MiB files, 100 columns and 20,000 data rows; ZIP expansion is bounded to 16 MiB total and 8 MiB per entry, with at most 1,000 entries. Hidden sheets, macro projects, encrypted files and legacy `.xls` files are unsupported. Headers must be unique and nonempty; Excel error cells and data beyond the header width are rejected. Trailing empty rows are omitted, while internal empty rows remain null records.
+
+The artifact records the original workbook hash, sheet, header row, formula count and warnings. Preview does not persist a table. HTTP endpoints are `POST /api/xlsx/sheets`, `/api/xlsx/inspect` and `/api/xlsx`, using base64 `content`, `name`, `sheet`, `header_row`, `types` and `acknowledge_formulas` as applicable.
+
+`openpyxl` and `defusedxml` are base installation requirements in this development checkout; a future release is needed for PyPI users. Cached-value behavior follows the [openpyxl loading documentation](https://openpyxl.readthedocs.io/en/stable/tutorial.html#loading-from-a-file).

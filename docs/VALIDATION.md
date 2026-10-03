@@ -64,3 +64,9 @@ These checks do not include browser-level visual interaction or remote Linux/Win
 - 46 unit/compiler/Python tests and 11 local HTTP tests passed.
 - Browser verified mapped-column inspector, reconciliation results, artifact visibility and named input reference assignment.
 - JavaScript syntax and diff checks passed. No added dependencies or native scheduling changes.
+
+## October 3: guided XLSX import
+
+- 51 unit/compiler/Python tests and 12 loopback HTTP tests passed (63 total). Coverage includes sheet visibility, header mapping, typed values, cached formulas, acknowledgment, missing-cache rejection, dates, duplicate headers and archive limits.
+- Browser imported Sales worksheet with header row 2, decimal/boolean mappings, and ran native summary returning `0.3`. Missing formula caches blocked import with recovery guidance. Evidence: `/tmp/graphcore-xlsx-result.jpg`.
+- JavaScript syntax passed. macOS ARM64 wheel and sdist built; Twine checks passed and archives contain the workbook module with openpyxl/defusedxml base requirements. No cross-platform CI or PyPI upload performed.

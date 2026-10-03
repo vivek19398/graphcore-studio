@@ -55,3 +55,12 @@
 - Delivery remains the existing development branch, with no live provider calls or PyPI publication.
 - Start usage: 22% five-hour / 3% weekly. Interactive resume does not change the scheduled below-50% stop rule.
 - Next step: XLSX support with sheet selection, typed import and formula-cache warnings; research the implementation dependency before adding it.
+
+## October 3, 2026 — Guided XLSX import
+
+- Continued under explicit interactive resume. Added worksheet/header selection, column types and shared immutable table artifacts with source workbook hash and import provenance.
+- Cached formulas require acknowledgment; missing cached results block import. Formula-containing rows remain visible in previews even without cached values. No formula calculation or source workbook changes occur. Added bounded ZIP parsing and unsupported-format rejection.
+- Added openpyxl and defusedxml to base package dependencies. Dependencies ship on the next release; published 0.2.2 remains unchanged.
+- Validation: 51 unit/compiler/Python tests and 12 HTTP tests passed (63 total); browser verified typed import, `0.3` summary and missing-cache rejection. JavaScript syntax, macOS ARM64 wheel/sdist builds, Twine and packaged dependency/module checks passed. Evidence `/tmp/graphcore-xlsx-result.jpg`.
+- Delivery remains codex/local-data-foundation; no live model calls or release publication. Usage at completion: 37% five-hour / 6% weekly. Scheduled below-50% stop rule remains unchanged.
+- Next step: export workflow result tables into a new workbook with provenance, without modifying source files.

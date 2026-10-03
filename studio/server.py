@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT))
 from studio.engine import compile_workflow, validate, TOOLS, KEY, pydantic_available, provider_availability, register_tool
 from studio.knowledge import LocalKnowledge
 from studio.tables import LocalTables
+from studio.workbooks import WorkbookImport
 
 WEB = ROOT / "studio" / "web"
 TEMPLATES = ROOT / "studio" / "templates"
@@ -102,6 +103,7 @@ class Store:
         self.workflows = self.root / "workflows"; self.workflows.mkdir(exist_ok=True)
         self.runs = self.root / "runs"; self.runs.mkdir(exist_ok=True)
         self.tables = LocalTables(self.root / "tables")
+        self.workbooks = WorkbookImport(self.tables)
         self.knowledge = LocalKnowledge(self.root / "knowledge")
         self.lock = threading.RLock()
         self.records = {}
@@ -350,6 +352,13 @@ class Handler(BaseHTTPRequestHandler):
                     body.get("values", {}), body.get("remove", []))})
             if path == "/api/settings/models":
                 return self.send({"models": self.server.store.update_models(body.get("models"))})
+            if path in ("/api/xlsx/sheets","/api/xlsx/inspect","/api/xlsx"):
+                workbooks=self.server.store.workbooks
+                name,content=body.get("name"),body.get("content")
+                if path == "/api/xlsx/sheets": return self.send(workbooks.sheets(name,content))
+                args=(name,content,body.get("sheet"),body.get("header_row",1))
+                if path == "/api/xlsx/inspect": return self.send(workbooks.inspect(*args))
+                return self.send({"table":workbooks.add(*args,types=body.get("types"),acknowledge_formulas=body.get("acknowledge_formulas",False))},201)
             if path == "/api/tables/inspect":
                 return self.send(self.server.store.tables.inspect(body.get("name"), body.get("text")))
             if path == "/api/tables":
