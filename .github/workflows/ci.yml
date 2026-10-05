@@ -14,7 +14,7 @@ jobs:
       - name: Install the wheel and exercise the native runtime
         shell: bash
         run: |
-          python -m pip install --no-deps --target "$RUNNER_TEMP/graphcore-installed" dist/*.whl
+          python -m pip install --target "$RUNNER_TEMP/graphcore-installed" dist/*.whl
           cd "$RUNNER_TEMP"
           PYTHONPATH="$RUNNER_TEMP/graphcore-installed" python - <<'PY'
           from graphcore import END, Graph
