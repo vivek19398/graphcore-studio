@@ -148,4 +148,4 @@ Parallel fan-out and joins, database-backed persistence, distributed worker coor
 
 ### Local table data workflows
 
-The development checkout now includes **Data workspace**: import typed CSV and XLSX files, preview local tables, and build an offline summary workflow with exact decimal calculations. Workflow state carries immutable table references rather than full datasets. See [the data workspace guide](docs/DATA_WORKSPACE.md) for usage, limits and the next delivery steps. This addition is not yet in the published 0.2.2 release.
+The development checkout now includes **Data workspace**: import typed CSV and XLSX files, preview local tables, and build an offline summary workflow with exact decimal calculations. Workflow state carries immutable table references rather than full datasets. See [the data workspace guide](docs/DATA_WORKSPACE.md) for usage, limits and the next delivery steps. Available in version 0.2.3.
