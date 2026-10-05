@@ -64,3 +64,11 @@
 - Validation: 51 unit/compiler/Python tests and 12 HTTP tests passed (63 total); browser verified typed import, `0.3` summary and missing-cache rejection. JavaScript syntax, macOS ARM64 wheel/sdist builds, Twine and packaged dependency/module checks passed. Evidence `/tmp/graphcore-xlsx-result.jpg`.
 - Delivery remains codex/local-data-foundation; no live model calls or release publication. Usage at completion: 37% five-hour / 6% weekly. Scheduled below-50% stop rule remains unchanged.
 - Next step: export workflow result tables into a new workbook with provenance, without modifying source files.
+
+## October 5, 2026 — User-authorized PyPI 0.2.3 release
+
+- Explicit publication request superseded the development-session usage gate for this release task. Prepared version 0.2.3 in cfb63b0 and fixed packaged CI dependency installation in 7108489. Preserved unrelated product functionality document.
+- 63 local tests passed; temporary installed wheel resolved all base dependencies and ran the C++ runtime. Corrected CI passed all nine OS/Python combinations, packaging and sanitizers (run 37330487720).
+- Release run 37329487324 passed all five platform wheel jobs, sdist and collection checks. Uploaded six wheels (Linux x64/ARM64, macOS Intel/ARM64, Windows x64/x86) plus source distribution to PyPI. Credentials read from previously authorized file without logging values.
+- PyPI 0.2.3 includes local knowledge, table summary/filter/group/reconciliation and guided XLSX import; OpenRouter, Pydantic, OpenPyXL and DefusedXML install automatically.
+- No merge to main or live model calls. Next development item remains workbook export.
